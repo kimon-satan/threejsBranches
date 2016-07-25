@@ -14,18 +14,21 @@
 		attribute vec2 n_normal;
 		attribute float miter;
 		attribute float line_dist;
+		attribute vec3 color;
 
 		uniform float thickness;
 
 		varying float line_d;
 		varying float dist;
+		varying vec3 o_color;
 
 		void main() {
 		    //push the point along its normal by half thickness
-		    vec2 p =  position.xy  + n_normal * thickness;
+		    vec2 p =  position.xy  + n_normal * thickness /2.0 *  miter;
 		    gl_Position = vec4(p.xy, 0.0, 1.0);
 		    dist = miter;
 		    line_d = line_dist;
+		    o_color = color;
 		    //gl_PointSize = 5.0;
 		}
 		</script>
@@ -41,6 +44,7 @@
 
 			varying float dist;
 			varying float line_d;
+			varying vec3 o_color;
 
 			float PI  = 3.141592653589793;
 			float TWO_PI = 6.283185307179586;
@@ -52,8 +56,8 @@
 				
 
 				float f = 0.5 + cos(line_d * TWO_PI + PI) * 0.5;
-				gl_FragColor = vec4(1.0 - pow(dist, f));
-				//gl_FragColor = vec4(1.);
+				//gl_FragColor = vec4(o_color *  (1.0 - pow(dist, f)),1.);
+				gl_FragColor = vec4(vec3(o_color * (1.0 - pow(dist,f))), 1.0);
 
 			}
 

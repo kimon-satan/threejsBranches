@@ -36,10 +36,11 @@ var geometry = new THREE.BufferGeometry();
 var numPoints = 100;
 var vertices = new Float32Array( numPoints * 6);
 var miters = new Float32Array( numPoints * 2);
+var lineDist = new Float32Array( numPoints * 2);
 var normals = new Float32Array( numPoints * 2 * 2);
 var indexArray = new Uint16Array( (numPoints - 1)  * 6);
 
-
+var c = 0;
 
 for(var i = 0; i < numPoints ; i++)
 {
@@ -53,27 +54,24 @@ for(var i = 0; i < numPoints ; i++)
 	vertices[i * 6 + 4] = vertices[i * 6 + 1];
 	vertices[i * 6 + 5] = 0.;
 
-	//on either side
+	//on either side 
+	//we use this to make a varying
 	miters[i * 2] = 1.;
-	miters[i * 2 + 1] = 1; 
+	miters[i * 2 + 1] = -1.; 
 
+	indexArray[c++] = i * 2;
+	indexArray[c++] = i * 2 + 1;
+	indexArray[c++] = i * 2 + 3;
+	indexArray[c++] = i * 2 + 0;
+	indexArray[c++] = i * 2 + 2;
+	indexArray[c++] = i * 2 + 3;
 
-
-}
-
-var c = 0;
-
-for(var i = 0; i < numPoints ; i++)
-{
-  indexArray[c++] = i * 2;
-  indexArray[c++] = i * 2 + 1;
-  indexArray[c++] = i * 2 + 3;
-  indexArray[c++] = i * 2 + 0;
-  indexArray[c++] = i * 2 + 2;
-  indexArray[c++] = i * 2 + 3;
+	lineDist[i * 2] = i/numPoints;
+	lineDist[i * 2 + 1] = i/numPoints;
 
 }
 
+//now calculate the normals
 
 for(var i = 0; i < numPoints ; i++)
 {
@@ -104,6 +102,7 @@ for(var i = 0; i < numPoints ; i++)
 // itemSize = 3 because there are 3 values (components) per vertex
 geometry.addAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
 geometry.addAttribute( 'miter', new THREE.BufferAttribute( miters, 1 ) );
+geometry.addAttribute( 'line_dist', new THREE.BufferAttribute( lineDist, 1 ) );
 geometry.addAttribute( 'n_normal', new THREE.BufferAttribute( normals, 2 ) );
 geometry.addAttribute('index', new THREE.BufferAttribute( indexArray, 1));
 

@@ -28,17 +28,20 @@ canvas.addEventListener("touchstart", function (e) {
 camera = new THREE.Camera();
 camera.position.z = 1;
 
-var numPoints = 10;
+var numPoints = 100;
 
 scene = new THREE.Scene();
 
 var mshape = new THREE.Shape();
-mshape.moveTo( -200., 0 , 0);
-
+mshape.moveTo(  -.5, 0 , 0);
+/*mshape.lineTo( 0, 0.5 , 0);
+mshape.lineTo(.5,0,0);
+mshape.lineTo( -.5, -.5 , 0);
+mshape.lineTo(-.25,-.7,0);*/
 for(var i = 0; i < numPoints; i++)
 {
-	var incr = 1000.0/numPoints;
-	mshape.lineTo( -200 + (i + 1) * incr, Math.sin(incr * i  * Math.PI * 6.) * 30, 0);
+	var incr = 1.0/numPoints;
+	mshape.lineTo( -.5 + (i + 1) * incr, Math.sin(incr * ( i+1)  * Math.PI * 4.) * .25, 0);
 }
 
 var points = mshape.extractAllPoints();
@@ -48,9 +51,10 @@ var geometry = new THREE.BufferGeometry();
 
 
 var vertices = new Float32Array( numPoints * 6);
-var miters = new Float32Array( numPoints * 2);
+var miters = new Float32Array( numPoints * 2 * 2);
+var distFields = new Float32Array( numPoints * 2 );
 var lineDist = new Float32Array( numPoints * 2);
-var normals = new Float32Array( numPoints * 2 * 2);
+var lengths = new Float32Array( numPoints * 2);
 var indexArray = new Uint16Array( (numPoints - 1)  * 6);
 var colors = new Float32Array( numPoints * 6);
 
@@ -78,7 +82,6 @@ for(var i = 0; i < numPoints ; i++)
 	colors[i * 6 + 5] = colors[i * 6 + 2];
 
 
-
 	indexArray[c++] = i * 2 + 2;
 	indexArray[c++] = i * 2 + 1;
 	indexArray[c++] = i * 2 + 0;
@@ -93,63 +96,72 @@ for(var i = 0; i < numPoints ; i++)
 
 //now calculate the normals
 
-for(var i = 0; i < numPoints ; i++)
+
+for(var i = 0; i < numPoints; i++)
 {
 
+	var pi = i - 1;
 	var ni = i + 1;
-	var normal = new THREE.Vector2(0,0);
-	if(i == numPoints - 1)
-	{
-		ni = i - 1;
-		normal.x = vertices[ni*6] - vertices[i*6];
-		normal.y = vertices[ni*6 +1] - vertices[i*6 +1];
-	}
-	else
-	{
-		normal.x = vertices[i*6] - vertices[ni*6];
-		normal.y = vertices[i*6 +1] - vertices[ni*6 +1];
-	}
 
-	//TODO optimise .. tidy up
-
-	var p0 = new THREE.Vector2(vertices[i * 6], vertices[i*6+1]);
-	var p1 = new THREE.Vector2(vertices[(i+1) * 6], vertices[(i+1)*6+1]);
-	var p2 = new THREE.Vector2(vertices[(i+2) * 6], vertices[(i+2)*6+1]);
+	var p0 = new THREE.Vector2(vertices[pi * 6], vertices[pi*6+1]);
+	var p1 = new THREE.Vector2(vertices[i * 6], vertices[i*6+1]);
+	var p2 = new THREE.Vector2(vertices[ni * 6], vertices[ni*6+1]);
 
 	var a = new THREE.Vector2();
 	var b = new THREE.Vector2();
 
-	a.subVectors(p2,p1);
+	a.subVectors(p1, p0)
 	a.normalize();
-	b.subVectors(p1, p0)
+	b.subVectors(p2,p1);
 	b.normalize();
+
+	
+	var normal_0 = new THREE.Vector2(-a.y,a.x);
+
+	if(i == numPoints -1 )
+	{
+		var normal_1 = new THREE.Vector2(a.y,-a.x);
+		miters[i * 4] = normal_0.x;
+		miters[i * 4 + 1] = normal_0.y; 
+		miters[i * 4 + 2] = normal_0.x;
+		miters[i * 4 + 3] = normal_0.y; 
+		lengths[i * 2] = 1.0;
+		lengths[i * 2 + 1] = -1.0;
+		continue;
+	}
+	else if(i == 0)
+	{
+		miters[i * 4] = -b.y;
+		miters[i * 4 + 1] = b.x; 
+		miters[i * 4 + 2] = -b.y;
+		miters[i * 4 + 3] = b.x; 
+		lengths[i * 2] = 1.0;
+		lengths[i * 2 + 1] = -1.0;
+		continue;
+	}
+
 
 	var tang = new THREE.Vector2();
 	tang.addVectors(a,b);
 	tang.normalize();
 
-	var miter = new THREE.Vector2( -tang.y, tang.x );
-	miter.normalize();
-
-	console.log(miter.dot(normal));
+	var miter_0 = new THREE.Vector2( -tang.y, tang.x );
+	miter_0.normalize();
+	//var miter_1= new THREE.Vector2( tang.y, -tang.x );
+	//miter_1.normalize();
 
 	//on either side 
 	//we use this to make a varying
-	var l = miter.dot(normal);
+	var l0 = miter_0.dot(normal_0);
 
+	miters[i * 4] = miter_0.x;
+	miters[i * 4 + 1] = miter_0.y; 
 
+	miters[i * 4 + 2] = miter_0.x;
+	miters[i * 4 + 3] = miter_0.y; 
 
-	miters[(i+1) * 2] = l;
-	miters[(i+1) * 2 + 1] = -l; 
-
-
-	normal.normalize();
-
-	normals[i * 4 + 0] = -normal.y;
-	normals[i * 4 + 1] = normal.x;
-	normals[i * 4 + 2] = -normal.y;
-	normals[i * 4 + 3] = normal.x;
-
+	lengths[i * 2] = l0;
+	lengths[i * 2 + 1] = -l0;
 
 
 }
@@ -158,9 +170,9 @@ for(var i = 0; i < numPoints ; i++)
 
 // itemSize = 3 because there are 3 values (components) per vertex
 geometry.addAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
-geometry.addAttribute( 'miter', new THREE.BufferAttribute( miters, 1 ) );
+geometry.addAttribute( 'miter', new THREE.BufferAttribute( miters, 2 ) );
 geometry.addAttribute( 'line_dist', new THREE.BufferAttribute( lineDist, 1 ) );
-geometry.addAttribute( 'n_normal', new THREE.BufferAttribute( normals, 2 ) );
+geometry.addAttribute( 'len', new THREE.BufferAttribute( lengths, 1 ) );
 geometry.addAttribute('index', new THREE.BufferAttribute( indexArray, 1));
 geometry.addAttribute('color', new THREE.BufferAttribute( colors, 3));
 
@@ -180,10 +192,11 @@ var material = new THREE.ShaderMaterial( {
 	uniforms: uniforms,
 	vertexShader: document.getElementById( 'vertexShader' ).textContent,
 	fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+	side:  THREE.DoubleSide
 
 } );
 
-//var pts = new THREE.Points(geometry, material);
+var pts = new THREE.Points(geometry, material);
 //scene.add(pts);
 
 var mesh = new THREE.Mesh( geometry, material );
@@ -205,12 +218,12 @@ function render() {
 
 	//console.log(ellapsedTime);
 	
-	//var gl = renderer.context;
+	var gl = renderer.context;
 	//var ext = gl.getExtension("EXT_blend_minmax");
-  	//gl.enable(gl.BLEND);
+  	gl.enable(gl.BLEND);
 
 	//gl.blendEquation(ext.MAX_EXT);
-  	//gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
+  	gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
   	
   	//gl.blendColor(0,0,0,1);
 

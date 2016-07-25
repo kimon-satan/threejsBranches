@@ -11,8 +11,8 @@
 
 		<script id="vertexShader" type="x-shader/x-vertex">
 
-		attribute vec2 n_normal;
-		attribute float miter;
+		attribute vec2 miter;
+		attribute float len;
 		attribute float line_dist;
 		attribute vec3 color;
 
@@ -24,9 +24,9 @@
 
 		void main() {
 		    //push the point along its normal by half thickness
-		    vec2 p =  position.xy  + n_normal * thickness /2.0 *  miter;
+		    vec2 p =  position.xy  +  miter  * (thickness/len);
 		    gl_Position = vec4(p.xy, 0.0, 1.0);
-		    dist = miter;
+		    dist = sign(len);
 		    line_d = line_dist;
 		    o_color = color;
 		    //gl_PointSize = 5.0;
@@ -56,9 +56,9 @@
 				
 
 				float f = 0.5 + cos(line_d * TWO_PI + PI) * 0.5;
-				//gl_FragColor = vec4(o_color *  (1.0 - pow(dist, f)),1.);
-				gl_FragColor = vec4(vec3(o_color * (1.0 - pow(dist,f))), 1.0);
 
+				gl_FragColor = vec4(o_color, 1.0 - pow(dist,f));
+				
 			}
 
 		</script>

@@ -28,12 +28,25 @@ canvas.addEventListener("touchstart", function (e) {
 camera = new THREE.Camera();
 camera.position.z = 1;
 
+var numPoints = 100;
+
 scene = new THREE.Scene();
 
+var mshape = new THREE.Shape();
+mshape.moveTo( -.5, 0 , 0);
+
+for(var i = 0; i < 100; i++)
+{
+	var incr = 1.0/100.;
+	mshape.lineTo( -.5 + (i + 1) * incr, Math.sin(incr * i  * Math.PI * 6.) * .05, 0);
+}
+
+var points = mshape.extractAllPoints();
+numPoints = points.shape.length;
 
 var geometry = new THREE.BufferGeometry();
 
-var numPoints = 100;
+
 var vertices = new Float32Array( numPoints * 6);
 var miters = new Float32Array( numPoints * 2);
 var lineDist = new Float32Array( numPoints * 2);
@@ -45,8 +58,8 @@ var c = 0;
 for(var i = 0; i < numPoints ; i++)
 {
 
-	vertices[i * 6 + 0] = Math.sin(i/numPoints * Math.PI * 2.) * .5;
-	vertices[i * 6 + 1] = Math.cos(i/numPoints * Math.PI * 2.) * .5;
+	vertices[i * 6 + 0] = points.shape[i].x;
+	vertices[i * 6 + 1] = points.shape[i].y;
 	vertices[i * 6 + 2] = 0.;
 
 	//a copy

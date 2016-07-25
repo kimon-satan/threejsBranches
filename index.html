@@ -26,7 +26,7 @@
 		    gl_Position = vec4(p.xy, 0.0, 1.0);
 		    dist = miter;
 		    line_d = line_dist;
-		    gl_PointSize = 5.0;
+		    //gl_PointSize = 5.0;
 		}
 		</script>
 
@@ -53,6 +53,7 @@
 
 				float f = 0.5 + cos(line_d * TWO_PI + PI) * 0.5;
 				gl_FragColor = vec4(1.0 - pow(dist, f));
+				//gl_FragColor = vec4(1.);
 
 			}
 

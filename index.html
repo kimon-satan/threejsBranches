@@ -59,7 +59,8 @@
 
 				float v = 0.5 + sin(o_line_prog * TWO_PI * col_freq) * 0.5;
 				vec3 m = mix(color1, color2, v);
-				gl_FragColor = vec4(m * (1.0 - pow(d,f)),1.0);
+				float alpha = (1.0 - pow(d,f));
+				gl_FragColor = vec4(m * alpha,alpha);
 				
 			}
 

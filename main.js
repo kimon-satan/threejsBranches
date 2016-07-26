@@ -228,8 +228,8 @@ function Branch(sp, dir){
 		uniforms: this.uniforms,
 		vertexShader: document.getElementById( 'vertexShader' ).textContent,
 		fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
-		side:  THREE.DoubleSide
-
+		side:  THREE.DoubleSide,
+		transparent: true
 	});
 
 	this.mesh = new THREE.Mesh( this.geometry, this.material );
@@ -290,11 +290,11 @@ function render() {
 		branches[i].update();
 	}
 	
-	var gl = renderer.context;
-	var ext = gl.getExtension("EXT_blend_minmax");
-  	gl.enable(gl.BLEND);
+	//var gl = renderer.context;
+	//var ext = gl.getExtension("EXT_blend_minmax");
+  	//gl.enable(gl.BLEND);
 
-	gl.blendEquationSeparate(ext.MAX_EXT, ext.MAX_EXT);
+	//gl.blendEquationSeparate(ext.MAX_EXT, ext.MAX_EXT);
   	//gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
   	
   	//gl.blendColor(0,0,0,1);

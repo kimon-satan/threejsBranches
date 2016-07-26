@@ -36,8 +36,7 @@ var uniforms = {
 	time:       { value: 1.0 },
 	resolution: { value: new THREE.Vector2() },
 	mouse:  	{value: mousePos },
-	scale:      {value: 2.0, gui: true, min: 1.0, max: 10.0},
-	thickness:  {value: 0.01, gui: true, min: 0.001, max: 0.1, step: 0.001}
+	scale:      {value: 2.0, gui: true, min: 1.0, max: 10.0}
 	
 };
 
@@ -64,11 +63,25 @@ function Branch(sp, dir){
 	this.miters = new Float32Array( this.maxPoints * 2 * 2);
 	this.miter_dims = new Float32Array( this.maxPoints * 2);
 	this.line_prog = new Float32Array( this.maxPoints * 2);
+	this.noise_mul = 0.01 + Math.random() * 0.04;
 	this.seed = Math.random();
 
+	this.uniforms = {
+		thickness:  {value: 0.01},
+		col_freq: {value: 1.0  + Math.random() * 7.0 },
+		color1: {value: new THREE.Vector3(Math.random(), Math.random(), Math.random())},
+		color2: {value: new THREE.Vector3(Math.random(), Math.random(), Math.random())}
+	};
 
-	this.createIndices = function()
+
+	this.createGeometry = function()
 	{
+
+		//only needs to be called once
+
+		var p = new THREE.Vector2().copy(this.startPos);
+		var norm = new THREE.Vector2(-this.incr.y, this.incr.x).normalize();
+
 		for(var i = 0; i < this.maxPoints; i++)
 		{
 			this.indexes[i*6] = i * 2 + 2;
@@ -78,24 +91,8 @@ function Branch(sp, dir){
 			this.indexes[i*6+4] = i * 2 + 1;
 			this.indexes[i*6+5] = i * 2 + 2;
 
-		}
-	}
-
-	this.recal = function(offset)
-	{
-
-		//populate the points in one go
-
-		var p = new THREE.Vector2().copy(this.startPos);
-		var norm = new THREE.Vector2(-this.incr.y, this.incr.x).normalize();
-		var t = new Date().getTime() * 0.001;
-
-		p.add(new THREE.Vector2().copy(this.incr).multiplyScalar(offset));
-
-		for(var i = offset; i < this.numPoints; i++)
-		{
-			
-			var n = noise.simplex2((i+1) * this.step * 5. , this.seed * 13.35433 ) * 0.05 * Math.sin(i/this.numPoints * Math.PI);
+			//NB. will need to change if noise is variable
+			var n = noise.simplex2((i+1) * this.step * 5. , this.seed * 13.35433 ) * this.noise_mul * Math.sin(i/this.maxPoints * Math.PI);
 
 			this.vertices[i * 6 + 0] = p.x + norm.x * n;
 			this.vertices[i * 6 + 1] = p.y + norm.y * n;
@@ -106,16 +103,13 @@ function Branch(sp, dir){
 			this.vertices[i * 6 + 4] = this.vertices[i * 6 + 1];
 			this.vertices[i * 6 + 5] = 0.;
 
-			this.line_prog[i * 2] = i/this.numPoints;
-			this.line_prog[i * 2 + 1] = i/this.numPoints;
-
 			p.add(this.incr);
 
 		}
 
-		//now calculate the normals
+		//now calculate the mitres 
 
-		for(var i = offset; i < this.numPoints; i++)
+		for(var i = 0; i < this.maxPoints; i++)
 		{
 
 			var pi = i - 1;
@@ -137,7 +131,7 @@ function Branch(sp, dir){
 
 			//for the ends
 
-			if(i == this.numPoints -1 )
+			if(i == this.maxPoints -1 )
 			{
 				this.miters[i * 4] = normal.x;
 				this.miters[i * 4 + 1] = normal.y; 
@@ -189,26 +183,49 @@ function Branch(sp, dir){
 
 		this.endPos.set(p);
 
+		this.geometry = new THREE.BufferGeometry();
+		this.geometry.dynamic = true;
+
+		//overriden attributes
+		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.vertices, 3 ) );
+		this.geometry.addAttribute('index', new THREE.BufferAttribute( this.indexes, 1));
+		
+		//custom attributes
+		this.geometry.addAttribute( 'line_prog', new THREE.BufferAttribute( this.line_prog, 1 ) );
+		this.geometry.addAttribute( 'miter', new THREE.BufferAttribute( this.miters, 2 ) );
+		this.geometry.addAttribute( 'miter_dims', new THREE.BufferAttribute( this.miter_dims, 1 ) );
+	}
+
+
+	this.recalLPs = function()
+	{
+
+		//calculate the line progression for all points
+		//NB. might be more useful in relation to maxPoints with a uniform for the progress
+		for(var i = 0; i < this.numPoints; i++)
+		{
+			this.line_prog[i * 2] = i/this.numPoints;
+			this.line_prog[i * 2 + 1] = i/this.numPoints;
+		}
+
+		for(var i = this.numPoints; i < this.maxPoints; i++)
+		{
+			this.line_prog[i * 2] = 1.0;
+			this.line_prog[i * 2 + 1] = 1.0;
+		}
 
 	}
 
-	this.createIndices();
-	this.recal(0);
-	this.geometry = new THREE.BufferGeometry();
-	this.geometry.dynamic = true;
+	this.createGeometry();
+	this.recalLPs();
 
-	//overriden attributes
-	this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.vertices, 3 ) );
-	this.geometry.addAttribute('index', new THREE.BufferAttribute( this.indexes, 1));
-	
-	//custom attributes
-	this.geometry.addAttribute( 'line_prog', new THREE.BufferAttribute( this.line_prog, 1 ) );
-	this.geometry.addAttribute( 'miter', new THREE.BufferAttribute( this.miters, 2 ) );
-	this.geometry.addAttribute( 'miter_dims', new THREE.BufferAttribute( this.miter_dims, 1 ) );
-
+	for(var u in uniforms)
+	{
+		this.uniforms[u] = uniforms[u]; //copy references to global uniforms
+	}
 
 	this.material = new THREE.ShaderMaterial( {
-		uniforms: uniforms,
+		uniforms: this.uniforms,
 		vertexShader: document.getElementById( 'vertexShader' ).textContent,
 		fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
 		side:  THREE.DoubleSide
@@ -222,7 +239,8 @@ function Branch(sp, dir){
 	this.update = function(){
 
 		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
-		if(this.numPoints < this.maxPoints)this.recal(0);
+		this.uniforms.thickness.value = Math.max(0.001 , (this.numPoints/this.maxPoints) * 0.02);
+		if(this.numPoints < this.maxPoints)this.recalLPs();
 		this.geometry.setDrawRange (0, this.numPoints * 6); 
 		this.geometry.attributes.position.needsUpdate = true;
 
@@ -240,10 +258,11 @@ function Branch(sp, dir){
 
 
 var branches = [];
+var numBranches = 100;
 
 var sp = new THREE.Vector2(0,0);
 
-for (var i = 0; i < 20; i++)
+for (var i = 0; i < numBranches; i++)
 {
 	var l = 0.1 + Math.random() * 0.6;
 	var d = new THREE.Vector2(Math.random(),Math.random()).sub(new THREE.Vector2(.5,.5)).normalize().multiplyScalar(l * 2.);
@@ -251,11 +270,6 @@ for (var i = 0; i < 20; i++)
  	branches.push(new Branch(sp,d));
  	scene.add(branches[i].mesh);
 }
-
-
-
-//var pts = new THREE.Points(geometry, material);
-//scene.add(pts);
 
 
 
@@ -271,7 +285,7 @@ function render() {
 
 	//console.log(ellapsedTime);
 
-	for (var i = 0; i < 20; i++)
+	for (var i = 0; i < numBranches; i++)
 	{
 		branches[i].update();
 	}

@@ -38,6 +38,10 @@
 				precision highp float;
 			#endif
 
+			uniform vec3 color1;
+			uniform vec3 color2;
+			uniform float col_freq;
+
 			varying float o_line_prog;
 			varying float o_m_prog;
 
@@ -52,10 +56,9 @@
 				float f = 0.5 + cos(pow(o_line_prog,0.5) * TWO_PI + PI) * 0.5;
 				
 				float d = pow(o_m_prog, 2.5);
-				vec3 col1 = vec3(1.0,0.45,0.40);
-				vec3 col2 = vec3(0.2,0.75,0.25);
-				float v = 0.5 + sin(o_line_prog * TWO_PI * 8.0) * 0.5;
-				vec3 m = mix(col1, col2, v);
+
+				float v = 0.5 + sin(o_line_prog * TWO_PI * col_freq) * 0.5;
+				vec3 m = mix(color1, color2, v);
 				gl_FragColor = vec4(m * (1.0 - pow(d,f)),1.0);
 				
 			}

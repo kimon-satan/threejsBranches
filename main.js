@@ -48,12 +48,11 @@ uniforms.resolution.value.y = renderer.domElement.height;
 
 //////////////////////////////////////////////////////////////////BRANCH//////////////////////////////////////////////////////////////////
 
-function Branch(){
+function Branch(sp, ep){
 
-	this.numPoints = 500;
-	this.direction; 
-	this.startPos = new THREE.Vector2();
-	this.endPos = new THREE.Vector2();
+	this.numPoints = 500; 
+	this.startPos = sp;
+	this.endPos = ep;
 
 	//attributes
 	this.vertices = new Float32Array( this.numPoints * 6);
@@ -61,20 +60,26 @@ function Branch(){
 	this.miters = new Float32Array( this.numPoints * 2 * 2);
 	this.miter_dims = new Float32Array( this.numPoints * 2);
 	this.line_prog = new Float32Array( this.numPoints * 2);
+	this.seed = Math.random();
 
 	//populate the points in one go
 
-	var incr = 1.0/this.numPoints;
 	var c = 0;
+	var d = new THREE.Vector2().subVectors(this.endPos,this.startPos);
+	var incr = new THREE.Vector2().copy(d).multiplyScalar(1./this.numPoints);
+	var p = new THREE.Vector2().copy(this.startPos);
+	var ns = this.startPos.distanceTo(this.endPos)/this.numPoints;
+	var norm = new THREE.Vector2(-d.y, d.x).normalize();
+
 
 	for(var i = 0; i < this.numPoints; i++)
 	{
 		
-		var x = -.5 + (i + 1) * incr;
-		var y = noise.simplex2((i+1) * incr * 2.5 , 0.) * 0.5;
 
-		this.vertices[i * 6 + 0] = x;
-		this.vertices[i * 6 + 1] = y;
+		var n = noise.simplex2((i+1) * ns * 5. , this.seed) * 0.05;
+
+		this.vertices[i * 6 + 0] = p.x + norm.x * n;
+		this.vertices[i * 6 + 1] = p.y + norm.y * n;
 		this.vertices[i * 6 + 2] = 0.;
 
 		//a copy
@@ -92,6 +97,9 @@ function Branch(){
 
 		this.line_prog[i * 2] = i/this.numPoints;
 		this.line_prog[i * 2 + 1] = i/this.numPoints;
+
+		p.add(incr);
+
 		
 	}
 
@@ -200,9 +208,18 @@ function Branch(){
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-var branch = new Branch();
+var branches = [];
 
-scene.add(branch.mesh);
+for (var i = 0; i < 10; i++)
+{
+	var sp = new THREE.Vector2(Math.random(),Math.random()).sub(new THREE.Vector2(.5,.5)).multiplyScalar(1.5);
+	var ep = new THREE.Vector2(Math.random(),Math.random()).sub(new THREE.Vector2(.5,.5)).multiplyScalar(1.5);
+
+ 	branches.push(new Branch(sp,ep));
+ 	scene.add(branches[i].mesh);
+}
+
+
 
 //var pts = new THREE.Points(geometry, material);
 //scene.add(pts);

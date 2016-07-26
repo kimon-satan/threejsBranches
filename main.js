@@ -48,37 +48,54 @@ uniforms.resolution.value.y = renderer.domElement.height;
 
 //////////////////////////////////////////////////////////////////BRANCH//////////////////////////////////////////////////////////////////
 
-function Branch(sp, ep){
+function Branch(sp, dir){
 
-	this.numPoints = 500; 
+	
+	this.maxPoints = 300;
+	this.numPoints = 10; 
 	this.startPos = sp;
-	this.endPos = ep;
+	this.endPos = new THREE.Vector2().copy(sp);
+	this.step = 0.001 + Math.random() * 0.009;
+	this.incr = dir.normalize().multiplyScalar(this.step);
 
 	//attributes
-	this.vertices = new Float32Array( this.numPoints * 6);
-	this.indexes = new Uint16Array( (this.numPoints - 1)  * 6);
-	this.miters = new Float32Array( this.numPoints * 2 * 2);
-	this.miter_dims = new Float32Array( this.numPoints * 2);
-	this.line_prog = new Float32Array( this.numPoints * 2);
+	this.vertices = new Float32Array( this.maxPoints * 6);
+	this.indexes = new Uint16Array( (this.maxPoints - 1)  * 6);
+	this.miters = new Float32Array( this.maxPoints * 2 * 2);
+	this.miter_dims = new Float32Array( this.maxPoints * 2);
+	this.line_prog = new Float32Array( this.maxPoints * 2);
 	this.seed = Math.random();
 
-	this.recal = function()
+
+	this.createIndices = function()
+	{
+		for(var i = 0; i < this.maxPoints; i++)
+		{
+			this.indexes[i*6] = i * 2 + 2;
+			this.indexes[i*6+1] = i * 2 + 1;
+			this.indexes[i*6+2] = i * 2 + 0;
+			this.indexes[i*6+3] = i * 2 + 3;
+			this.indexes[i*6+4] = i * 2 + 1;
+			this.indexes[i*6+5] = i * 2 + 2;
+
+		}
+	}
+
+	this.recal = function(offset)
 	{
 
 		//populate the points in one go
 
-		var d = new THREE.Vector2().subVectors(this.endPos,this.startPos);
-		var incr = new THREE.Vector2().copy(d).multiplyScalar(1./this.numPoints);
 		var p = new THREE.Vector2().copy(this.startPos);
-		var ns = this.startPos.distanceTo(this.endPos)/this.numPoints;
-		var norm = new THREE.Vector2(-d.y, d.x).normalize();
+		var norm = new THREE.Vector2(-this.incr.y, this.incr.x).normalize();
 		var t = new Date().getTime() * 0.001;
 
-		for(var i = 0; i < this.numPoints; i++)
+		p.add(new THREE.Vector2().copy(this.incr).multiplyScalar(offset));
+
+		for(var i = offset; i < this.numPoints; i++)
 		{
 			
-
-			var n = noise.simplex2((i+1) * ns * 5. , this.seed * 10. + t ) * 0.05 * Math.sin(i/this.numPoints * Math.PI);
+			var n = noise.simplex2((i+1) * this.step * 5. , this.seed * 13.35433 ) * 0.05 * Math.sin(i/this.numPoints * Math.PI);
 
 			this.vertices[i * 6 + 0] = p.x + norm.x * n;
 			this.vertices[i * 6 + 1] = p.y + norm.y * n;
@@ -89,27 +106,16 @@ function Branch(sp, ep){
 			this.vertices[i * 6 + 4] = this.vertices[i * 6 + 1];
 			this.vertices[i * 6 + 5] = 0.;
 
-
-			this.indexes[i*6] = i * 2 + 2;
-			this.indexes[i*6+1] = i * 2 + 1;
-			this.indexes[i*6+2] = i * 2 + 0;
-			this.indexes[i*6+3] = i * 2 + 3;
-			this.indexes[i*6+4] = i * 2 + 1;
-			this.indexes[i*6+5] = i * 2 + 2;
-
 			this.line_prog[i * 2] = i/this.numPoints;
 			this.line_prog[i * 2 + 1] = i/this.numPoints;
 
-			p.add(incr);
+			p.add(this.incr);
 
-			
 		}
-
-
 
 		//now calculate the normals
 
-		for(var i = 0; i < this.numPoints; i++)
+		for(var i = offset; i < this.numPoints; i++)
 		{
 
 			var pi = i - 1;
@@ -181,10 +187,13 @@ function Branch(sp, ep){
 
 		}
 
+		this.endPos.set(p);
+
 
 	}
 
-	this.recal();
+	this.createIndices();
+	this.recal(0);
 	this.geometry = new THREE.BufferGeometry();
 	this.geometry.dynamic = true;
 
@@ -209,10 +218,14 @@ function Branch(sp, ep){
 	this.mesh = new THREE.Mesh( this.geometry, this.material );
 
 
+
 	this.update = function(){
-		this.recal();
+
+		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
+		if(this.numPoints < this.maxPoints)this.recal(0);
+		this.geometry.setDrawRange (0, this.numPoints * 6); 
 		this.geometry.attributes.position.needsUpdate = true;
-		//this.geometry.attributes.index.needsUpdate = true;
+
 		this.geometry.attributes.line_prog.needsUpdate = true;
 		this.geometry.attributes.miter.needsUpdate = true;
 		this.geometry.attributes.miter_dims.needsUpdate = true;
@@ -230,12 +243,12 @@ var branches = [];
 
 var sp = new THREE.Vector2(0,0);
 
-for (var i = 0; i < 10; i++)
+for (var i = 0; i < 20; i++)
 {
 	var l = 0.1 + Math.random() * 0.6;
-	var ep = new THREE.Vector2(Math.random(),Math.random()).sub(new THREE.Vector2(.5,.5)).normalize().multiplyScalar(l * 2.);
+	var d = new THREE.Vector2(Math.random(),Math.random()).sub(new THREE.Vector2(.5,.5)).normalize().multiplyScalar(l * 2.);
 
- 	branches.push(new Branch(sp,ep));
+ 	branches.push(new Branch(sp,d));
  	scene.add(branches[i].mesh);
 }
 
@@ -244,8 +257,7 @@ for (var i = 0; i < 10; i++)
 //var pts = new THREE.Points(geometry, material);
 //scene.add(pts);
 
-//var wireframe = new THREE.WireframeHelper( mesh, 0x00ff00 );
-//scene.add(wireframe)
+
 
 var startTime = new Date().getTime();
 var ellapsedTime = 0;
@@ -259,7 +271,7 @@ function render() {
 
 	//console.log(ellapsedTime);
 
-	for (var i = 0; i < 10; i++)
+	for (var i = 0; i < 20; i++)
 	{
 		branches[i].update();
 	}

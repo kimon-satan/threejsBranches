@@ -11,6 +11,7 @@
 
 		<script id="vertexShader" type="x-shader/x-vertex">
 
+			uniform vec2 resolution;
 			attribute vec2 miter;
 			attribute float miter_dims;
 			attribute float line_prog;
@@ -22,7 +23,8 @@
 
 			void main()
 			{
-			    vec2 p =  position.xy  +  miter  * (thickness/miter_dims);
+				vec2 p = position.xy * vec2(resolution.y/resolution.x, 1.0);
+			    p += miter  * (thickness/miter_dims);
 			    gl_Position = vec4(p.xy, 0.0, 1.0);
 			    o_m_prog = sign(miter_dims);
 			    o_line_prog = line_prog;
@@ -35,9 +37,6 @@
 			#ifdef GL_ES
 				precision highp float;
 			#endif
-
-			uniform float time;
-			uniform vec2 mouse;
 
 			varying float o_line_prog;
 			varying float o_m_prog;

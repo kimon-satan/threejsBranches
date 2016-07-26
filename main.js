@@ -29,160 +29,8 @@ canvas.addEventListener("touchstart", function (e) {
 camera = new THREE.Camera();
 camera.position.z = 1;
 
-var numPoints = 500;
 
 scene = new THREE.Scene();
-
-
-//////////////////////////////////////////////////////////////////BRANCH//////////////////////////////////////////////////////////////////
-
-function Branch(){
-}
-
-var mshape = new THREE.Shape();
-mshape.moveTo(  -.5, 0 , 0);
-/*mshape.lineTo( 0, 0.5 , 0);
-mshape.lineTo(.5,0,0);
-mshape.lineTo( -.5, -.5 , 0);
-mshape.lineTo(-.25,-.7,0);*/
-for(var i = 0; i < numPoints; i++)
-{
-	var incr = 1.0/numPoints;
-	var y = noise.simplex2((i+1) * incr * 2.5 , 0.) * 0.5;
-	mshape.lineTo( -.5 + (i + 1) * incr, y, 0);
-}
-
-var points = mshape.extractAllPoints();
-numPoints = points.shape.length;
-
-var geometry = new THREE.BufferGeometry();
-
-
-var vertices = new Float32Array( numPoints * 6);
-var miters = new Float32Array( numPoints * 2 * 2);
-var distFields = new Float32Array( numPoints * 2 );
-var lineDist = new Float32Array( numPoints * 2);
-var lengths = new Float32Array( numPoints * 2);
-var indexArray = new Uint16Array( (numPoints - 1)  * 6);
-var colors = new Float32Array( numPoints * 6);
-
-var c = 0;
-
-for(var i = 0; i < numPoints ; i++)
-{
-
-
-	vertices[i * 6 + 0] = points.shape[i].x;
-	vertices[i * 6 + 1] = points.shape[i].y;
-	vertices[i * 6 + 2] = 0.;
-
-	//a copy
-	vertices[i * 6 + 3] = vertices[i * 6 + 0];
-	vertices[i * 6 + 4] = vertices[i * 6 + 1];
-	vertices[i * 6 + 5] = 0.;
-
-	colors[i * 6 + 0] = Math.random();
-	colors[i * 6 + 1] = Math.random();
-	colors[i * 6 + 2] = Math.random();
-
-	colors[i * 6 + 3] = colors[i * 6 + 0];
-	colors[i * 6 + 4] = colors[i * 6 + 1];
-	colors[i * 6 + 5] = colors[i * 6 + 2];
-
-
-	indexArray[c++] = i * 2 + 2;
-	indexArray[c++] = i * 2 + 1;
-	indexArray[c++] = i * 2 + 0;
-	indexArray[c++] = i * 2 + 3;
-	indexArray[c++] = i * 2 + 1;
-	indexArray[c++] = i * 2 + 2;
-
-	lineDist[i * 2] = i/numPoints;
-	lineDist[i * 2 + 1] = i/numPoints;
-
-}
-
-//now calculate the normals
-
-
-for(var i = 0; i < numPoints; i++)
-{
-
-	var pi = i - 1;
-	var ni = i + 1;
-
-	var p0 = new THREE.Vector2(vertices[pi * 6], vertices[pi*6+1]);
-	var p1 = new THREE.Vector2(vertices[i * 6], vertices[i*6+1]);
-	var p2 = new THREE.Vector2(vertices[ni * 6], vertices[ni*6+1]);
-
-	var a = new THREE.Vector2();
-	var b = new THREE.Vector2();
-
-	a.subVectors(p1, p0)
-	a.normalize();
-	b.subVectors(p2,p1);
-	b.normalize();
-
-	
-	var normal_0 = new THREE.Vector2(-a.y,a.x);
-
-	if(i == numPoints -1 )
-	{
-		var normal_1 = new THREE.Vector2(a.y,-a.x);
-		miters[i * 4] = normal_0.x;
-		miters[i * 4 + 1] = normal_0.y; 
-		miters[i * 4 + 2] = normal_0.x;
-		miters[i * 4 + 3] = normal_0.y; 
-		lengths[i * 2] = 1.0;
-		lengths[i * 2 + 1] = -1.0;
-		continue;
-	}
-	else if(i == 0)
-	{
-		miters[i * 4] = -b.y;
-		miters[i * 4 + 1] = b.x; 
-		miters[i * 4 + 2] = -b.y;
-		miters[i * 4 + 3] = b.x; 
-		lengths[i * 2] = 1.0;
-		lengths[i * 2 + 1] = -1.0;
-		continue;
-	}
-
-
-	var tang = new THREE.Vector2();
-	tang.addVectors(a,b);
-	tang.normalize();
-
-	var miter_0 = new THREE.Vector2( -tang.y, tang.x );
-	miter_0.normalize();
-	//var miter_1= new THREE.Vector2( tang.y, -tang.x );
-	//miter_1.normalize();
-
-	//on either side 
-	//we use this to make a varying
-	var l0 = miter_0.dot(normal_0);
-
-	miters[i * 4] = miter_0.x;
-	miters[i * 4 + 1] = miter_0.y; 
-
-	miters[i * 4 + 2] = miter_0.x;
-	miters[i * 4 + 3] = miter_0.y; 
-
-	lengths[i * 2] = l0;
-	lengths[i * 2 + 1] = -l0;
-
-
-}
-
-
-
-// itemSize = 3 because there are 3 values (components) per vertex
-geometry.addAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
-geometry.addAttribute( 'miter', new THREE.BufferAttribute( miters, 2 ) );
-geometry.addAttribute( 'line_dist', new THREE.BufferAttribute( lineDist, 1 ) );
-geometry.addAttribute( 'len', new THREE.BufferAttribute( lengths, 1 ) );
-geometry.addAttribute('index', new THREE.BufferAttribute( indexArray, 1));
-geometry.addAttribute('color', new THREE.BufferAttribute( colors, 3));
 
 var uniforms = {
 	time:       { value: 1.0 },
@@ -196,26 +44,174 @@ var uniforms = {
 uniforms.resolution.value.x = renderer.domElement.width;
 uniforms.resolution.value.y = renderer.domElement.height;
 
-var material = new THREE.ShaderMaterial( {
-	uniforms: uniforms,
-	vertexShader: document.getElementById( 'vertexShader' ).textContent,
-	fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
-	side:  THREE.DoubleSide
 
-} );
 
-var pts = new THREE.Points(geometry, material);
+//////////////////////////////////////////////////////////////////BRANCH//////////////////////////////////////////////////////////////////
+
+function Branch(){
+
+	this.numPoints = 500;
+	this.direction; 
+	this.startPos = new THREE.Vector2();
+	this.endPos = new THREE.Vector2();
+
+	//attributes
+	this.vertices = new Float32Array( this.numPoints * 6);
+	this.indexes = new Uint16Array( (this.numPoints - 1)  * 6);
+	this.miters = new Float32Array( this.numPoints * 2 * 2);
+	this.miter_dims = new Float32Array( this.numPoints * 2);
+	this.line_prog = new Float32Array( this.numPoints * 2);
+
+	//populate the points in one go
+
+	var incr = 1.0/this.numPoints;
+	var c = 0;
+
+	for(var i = 0; i < this.numPoints; i++)
+	{
+		
+		var x = -.5 + (i + 1) * incr;
+		var y = noise.simplex2((i+1) * incr * 2.5 , 0.) * 0.5;
+
+		this.vertices[i * 6 + 0] = x;
+		this.vertices[i * 6 + 1] = y;
+		this.vertices[i * 6 + 2] = 0.;
+
+		//a copy
+		this.vertices[i * 6 + 3] = this.vertices[i * 6 + 0];
+		this.vertices[i * 6 + 4] = this.vertices[i * 6 + 1];
+		this.vertices[i * 6 + 5] = 0.;
+
+
+		this.indexes[c++] = i * 2 + 2;
+		this.indexes[c++] = i * 2 + 1;
+		this.indexes[c++] = i * 2 + 0;
+		this.indexes[c++] = i * 2 + 3;
+		this.indexes[c++] = i * 2 + 1;
+		this.indexes[c++] = i * 2 + 2;
+
+		this.line_prog[i * 2] = i/this.numPoints;
+		this.line_prog[i * 2 + 1] = i/this.numPoints;
+		
+	}
+
+	//now calculate the normals
+
+	for(var i = 0; i < this.numPoints; i++)
+	{
+
+		var pi = i - 1;
+		var ni = i + 1;
+
+		var p0 = new THREE.Vector2(this.vertices[pi * 6], this.vertices[pi*6+1]);
+		var p1 = new THREE.Vector2(this.vertices[i * 6], this.vertices[i*6+1]);
+		var p2 = new THREE.Vector2(this.vertices[ni * 6], this.vertices[ni*6+1]);
+
+		var a = new THREE.Vector2();
+		var b = new THREE.Vector2();
+
+		a.subVectors(p1, p0)
+		a.normalize();
+		b.subVectors(p2,p1);
+		b.normalize();
+
+		var normal = new THREE.Vector2(-a.y,a.x);
+
+		//for the ends
+
+		if(i == this.numPoints -1 )
+		{
+			this.miters[i * 4] = normal.x;
+			this.miters[i * 4 + 1] = normal.y; 
+			this.miters[i * 4 + 2] = normal.x;
+			this.miters[i * 4 + 3] = normal.y; 
+			this.miter_dims[i * 2] = 1.0;
+			this.miter_dims[i * 2 + 1] = -1.0;
+			
+		}
+		else if(i == 0)
+		{
+			//construct normal using the following segment
+			
+			this.miters[i * 4] = -b.y;
+			this.miters[i * 4 + 1] = b.x; 
+			this.miters[i * 4 + 2] = -b.y;
+			this.miters[i * 4 + 3] = b.x;  
+			this.miter_dims[i * 2] = 1.0;
+			this.miter_dims[i * 2 + 1] = -1.0;
+		
+		}
+		else
+		{
+
+			//all other points
+
+			var tang = new THREE.Vector2();
+			tang.addVectors(a,b);
+			tang.normalize();
+
+			var miter = new THREE.Vector2( -tang.y, tang.x );
+			miter.normalize();
+
+			//length of miter on either side
+			var l = miter.dot(normal);
+
+			this.miters[i * 4] = miter.x;
+			this.miters[i * 4 + 1] = miter.y; 
+
+			this.miters[i * 4 + 2] = miter.x;
+			this.miters[i * 4 + 3] = miter.y; 
+
+			this.miter_dims[i * 2] = l;
+			this.miter_dims[i * 2 + 1] = -l; //signed to flip the vertex
+
+		}
+
+
+	}
+
+	this.geometry = new THREE.BufferGeometry();
+
+	//overriden attributes
+	this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.vertices, 3 ) );
+	this.geometry.addAttribute('index', new THREE.BufferAttribute( this.indexes, 1));
+	
+	//custom attributes
+	this.geometry.addAttribute( 'line_prog', new THREE.BufferAttribute( this.line_prog, 1 ) );
+	this.geometry.addAttribute( 'miter', new THREE.BufferAttribute( this.miters, 2 ) );
+	this.geometry.addAttribute( 'miter_dims', new THREE.BufferAttribute( this.miter_dims, 1 ) );
+
+
+	this.material = new THREE.ShaderMaterial( {
+		uniforms: uniforms,
+		vertexShader: document.getElementById( 'vertexShader' ).textContent,
+		fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+		side:  THREE.DoubleSide
+
+	});
+
+	this.mesh = new THREE.Mesh( this.geometry, this.material );
+
+
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+var branch = new Branch();
+
+scene.add(branch.mesh);
+
+//var pts = new THREE.Points(geometry, material);
 //scene.add(pts);
 
-var mesh = new THREE.Mesh( geometry, material );
-scene.add( mesh );
-
-var wireframe = new THREE.WireframeHelper( mesh, 0x00ff00 );
+//var wireframe = new THREE.WireframeHelper( mesh, 0x00ff00 );
 //scene.add(wireframe)
 
 var startTime = new Date().getTime();
 var ellapsedTime = 0;
-
 
 
 function render() {

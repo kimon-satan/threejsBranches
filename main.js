@@ -62,123 +62,131 @@ function Branch(sp, ep){
 	this.line_prog = new Float32Array( this.numPoints * 2);
 	this.seed = Math.random();
 
-	//populate the points in one go
-
-	var c = 0;
-	var d = new THREE.Vector2().subVectors(this.endPos,this.startPos);
-	var incr = new THREE.Vector2().copy(d).multiplyScalar(1./this.numPoints);
-	var p = new THREE.Vector2().copy(this.startPos);
-	var ns = this.startPos.distanceTo(this.endPos)/this.numPoints;
-	var norm = new THREE.Vector2(-d.y, d.x).normalize();
-
-
-	for(var i = 0; i < this.numPoints; i++)
-	{
-		
-
-		var n = noise.simplex2((i+1) * ns * 5. , this.seed) * 0.05;
-
-		this.vertices[i * 6 + 0] = p.x + norm.x * n;
-		this.vertices[i * 6 + 1] = p.y + norm.y * n;
-		this.vertices[i * 6 + 2] = 0.;
-
-		//a copy
-		this.vertices[i * 6 + 3] = this.vertices[i * 6 + 0];
-		this.vertices[i * 6 + 4] = this.vertices[i * 6 + 1];
-		this.vertices[i * 6 + 5] = 0.;
-
-
-		this.indexes[c++] = i * 2 + 2;
-		this.indexes[c++] = i * 2 + 1;
-		this.indexes[c++] = i * 2 + 0;
-		this.indexes[c++] = i * 2 + 3;
-		this.indexes[c++] = i * 2 + 1;
-		this.indexes[c++] = i * 2 + 2;
-
-		this.line_prog[i * 2] = i/this.numPoints;
-		this.line_prog[i * 2 + 1] = i/this.numPoints;
-
-		p.add(incr);
-
-		
-	}
-
-	//now calculate the normals
-
-	for(var i = 0; i < this.numPoints; i++)
+	this.recal = function()
 	{
 
-		var pi = i - 1;
-		var ni = i + 1;
+		//populate the points in one go
 
-		var p0 = new THREE.Vector2(this.vertices[pi * 6], this.vertices[pi*6+1]);
-		var p1 = new THREE.Vector2(this.vertices[i * 6], this.vertices[i*6+1]);
-		var p2 = new THREE.Vector2(this.vertices[ni * 6], this.vertices[ni*6+1]);
+		var d = new THREE.Vector2().subVectors(this.endPos,this.startPos);
+		var incr = new THREE.Vector2().copy(d).multiplyScalar(1./this.numPoints);
+		var p = new THREE.Vector2().copy(this.startPos);
+		var ns = this.startPos.distanceTo(this.endPos)/this.numPoints;
+		var norm = new THREE.Vector2(-d.y, d.x).normalize();
+		var t = new Date().getTime() * 0.001;
 
-		var a = new THREE.Vector2();
-		var b = new THREE.Vector2();
-
-		a.subVectors(p1, p0)
-		a.normalize();
-		b.subVectors(p2,p1);
-		b.normalize();
-
-		var normal = new THREE.Vector2(-a.y,a.x);
-
-		//for the ends
-
-		if(i == this.numPoints -1 )
+		for(var i = 0; i < this.numPoints; i++)
 		{
-			this.miters[i * 4] = normal.x;
-			this.miters[i * 4 + 1] = normal.y; 
-			this.miters[i * 4 + 2] = normal.x;
-			this.miters[i * 4 + 3] = normal.y; 
-			this.miter_dims[i * 2] = 1.0;
-			this.miter_dims[i * 2 + 1] = -1.0;
+			
+
+			var n = noise.simplex2((i+1) * ns * 5. , this.seed * 10. + t ) * 0.05 * Math.sin(i/this.numPoints * Math.PI);
+
+			this.vertices[i * 6 + 0] = p.x + norm.x * n;
+			this.vertices[i * 6 + 1] = p.y + norm.y * n;
+			this.vertices[i * 6 + 2] = 0.;
+
+			//a copy
+			this.vertices[i * 6 + 3] = this.vertices[i * 6 + 0];
+			this.vertices[i * 6 + 4] = this.vertices[i * 6 + 1];
+			this.vertices[i * 6 + 5] = 0.;
+
+
+			this.indexes[i*6] = i * 2 + 2;
+			this.indexes[i*6+1] = i * 2 + 1;
+			this.indexes[i*6+2] = i * 2 + 0;
+			this.indexes[i*6+3] = i * 2 + 3;
+			this.indexes[i*6+4] = i * 2 + 1;
+			this.indexes[i*6+5] = i * 2 + 2;
+
+			this.line_prog[i * 2] = i/this.numPoints;
+			this.line_prog[i * 2 + 1] = i/this.numPoints;
+
+			p.add(incr);
+
 			
 		}
-		else if(i == 0)
+
+
+
+		//now calculate the normals
+
+		for(var i = 0; i < this.numPoints; i++)
 		{
-			//construct normal using the following segment
+
+			var pi = i - 1;
+			var ni = i + 1;
+
+			var p0 = new THREE.Vector2(this.vertices[pi * 6], this.vertices[pi*6+1]);
+			var p1 = new THREE.Vector2(this.vertices[i * 6], this.vertices[i*6+1]);
+			var p2 = new THREE.Vector2(this.vertices[ni * 6], this.vertices[ni*6+1]);
+
+			var a = new THREE.Vector2();
+			var b = new THREE.Vector2();
+
+			a.subVectors(p1, p0)
+			a.normalize();
+			b.subVectors(p2,p1);
+			b.normalize();
+
+			var normal = new THREE.Vector2(-a.y,a.x);
+
+			//for the ends
+
+			if(i == this.numPoints -1 )
+			{
+				this.miters[i * 4] = normal.x;
+				this.miters[i * 4 + 1] = normal.y; 
+				this.miters[i * 4 + 2] = normal.x;
+				this.miters[i * 4 + 3] = normal.y; 
+				this.miter_dims[i * 2] = 1.0;
+				this.miter_dims[i * 2 + 1] = -1.0;
+				
+			}
+			else if(i == 0)
+			{
+				//construct normal using the following segment
+				
+				this.miters[i * 4] = -b.y;
+				this.miters[i * 4 + 1] = b.x; 
+				this.miters[i * 4 + 2] = -b.y;
+				this.miters[i * 4 + 3] = b.x;  
+				this.miter_dims[i * 2] = 1.0;
+				this.miter_dims[i * 2 + 1] = -1.0;
 			
-			this.miters[i * 4] = -b.y;
-			this.miters[i * 4 + 1] = b.x; 
-			this.miters[i * 4 + 2] = -b.y;
-			this.miters[i * 4 + 3] = b.x;  
-			this.miter_dims[i * 2] = 1.0;
-			this.miter_dims[i * 2 + 1] = -1.0;
-		
-		}
-		else
-		{
+			}
+			else
+			{
 
-			//all other points
+				//all other points
 
-			var tang = new THREE.Vector2();
-			tang.addVectors(a,b);
-			tang.normalize();
+				var tang = new THREE.Vector2();
+				tang.addVectors(a,b);
+				tang.normalize();
 
-			var miter = new THREE.Vector2( -tang.y, tang.x );
-			miter.normalize();
+				var miter = new THREE.Vector2( -tang.y, tang.x );
+				miter.normalize();
 
-			//length of miter on either side
-			var l = miter.dot(normal);
+				//length of miter on either side
+				var l = miter.dot(normal);
 
-			this.miters[i * 4] = miter.x;
-			this.miters[i * 4 + 1] = miter.y; 
+				this.miters[i * 4] = miter.x;
+				this.miters[i * 4 + 1] = miter.y; 
 
-			this.miters[i * 4 + 2] = miter.x;
-			this.miters[i * 4 + 3] = miter.y; 
+				this.miters[i * 4 + 2] = miter.x;
+				this.miters[i * 4 + 3] = miter.y; 
 
-			this.miter_dims[i * 2] = l;
-			this.miter_dims[i * 2 + 1] = -l; //signed to flip the vertex
+				this.miter_dims[i * 2] = l;
+				this.miter_dims[i * 2 + 1] = -l; //signed to flip the vertex
+
+			}
 
 		}
 
 
 	}
 
+	this.recal();
 	this.geometry = new THREE.BufferGeometry();
+	this.geometry.dynamic = true;
 
 	//overriden attributes
 	this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.vertices, 3 ) );
@@ -201,6 +209,16 @@ function Branch(sp, ep){
 	this.mesh = new THREE.Mesh( this.geometry, this.material );
 
 
+	this.update = function(){
+		this.recal();
+		this.geometry.attributes.position.needsUpdate = true;
+		//this.geometry.attributes.index.needsUpdate = true;
+		this.geometry.attributes.line_prog.needsUpdate = true;
+		this.geometry.attributes.miter.needsUpdate = true;
+		this.geometry.attributes.miter_dims.needsUpdate = true;
+	}
+
+
 }
 
 
@@ -210,10 +228,12 @@ function Branch(sp, ep){
 
 var branches = [];
 
+var sp = new THREE.Vector2(0,0);
+
 for (var i = 0; i < 10; i++)
 {
-	var sp = new THREE.Vector2(Math.random(),Math.random()).sub(new THREE.Vector2(.5,.5)).multiplyScalar(1.5);
-	var ep = new THREE.Vector2(Math.random(),Math.random()).sub(new THREE.Vector2(.5,.5)).multiplyScalar(1.5);
+	var l = 0.1 + Math.random() * 0.6;
+	var ep = new THREE.Vector2(Math.random(),Math.random()).sub(new THREE.Vector2(.5,.5)).normalize().multiplyScalar(l * 2.);
 
  	branches.push(new Branch(sp,ep));
  	scene.add(branches[i].mesh);
@@ -238,6 +258,11 @@ function render() {
 	uniforms.mouse.value = mousePos;
 
 	//console.log(ellapsedTime);
+
+	for (var i = 0; i < 10; i++)
+	{
+		branches[i].update();
+	}
 	
 	var gl = renderer.context;
 	var ext = gl.getExtension("EXT_blend_minmax");

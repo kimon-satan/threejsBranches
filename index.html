@@ -49,7 +49,8 @@
 	
 			void main()	{
 	
-				float f = 0.5 + cos(o_line_prog * TWO_PI + PI) * 0.5;
+				float f = 0.5 + cos(pow(o_line_prog,0.5) * TWO_PI + PI) * 0.5;
+				
 				float d = pow(o_m_prog, 2.5);
 				vec3 col1 = vec3(1.0,0.45,0.40);
 				vec3 col2 = vec3(0.2,0.75,0.25);

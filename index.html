@@ -12,6 +12,7 @@
 		<script id="vertexShader" type="x-shader/x-vertex">
 
 			uniform vec2 resolution;
+			uniform float scale;
 			attribute vec2 miter;
 			attribute float miter_dims;
 			attribute float line_prog;
@@ -23,12 +24,12 @@
 
 			void main()
 			{
-				vec2 p = position.xy * vec2(resolution.y/resolution.x, 1.0);
+				vec2 p = position.xy * vec2(resolution.y/resolution.x, 1.0) * scale;
 			    p += miter  * (thickness/miter_dims);
 			    gl_Position = vec4(p.xy, 0.0, 1.0);
 			    o_m_prog = sign(miter_dims);
 			    o_line_prog = line_prog;
-			    gl_PointSize = 10.0;
+			    gl_PointSize = 2.0;
 			}
 
 		</script>
@@ -62,7 +63,7 @@
 				vec3 m = mix(color1, color2, v);
 				float alpha = (1.0 - pow(d,f));
 				gl_FragColor = vec4(m * alpha,alpha);
-				//gl_FragColor = vec4(1.0);
+				//gl_FragColor = vec4(1.);
 				
 			}
 

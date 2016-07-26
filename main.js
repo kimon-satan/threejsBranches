@@ -67,7 +67,7 @@ var uniforms = {
 	time:       { value: 1.0 },
 	resolution: { value: new THREE.Vector2() },
 	mouse:  	{value: mousePos },
-	scale:      {value: 2.0, gui: true, min: 1.0, max: 10.0}
+	scale:      {value: 1.0, gui: true, min: 1.0, max: 10.0}
 	
 };
 
@@ -80,12 +80,12 @@ uniforms.resolution.value.y = renderer.domElement.height;
 
 function Branch(sp){
 
-	
+
 	this.maxPoints = 300;
-	this.numPoints = 1; 
+	this.numPoints = 0; 
 	this.startPos = sp;
-	this.endPos = new THREE.Vector2().copy(sp);
-	this.step = 0.001 + Math.random() * 0.009;
+	this.endPos = undefined;
+	this.dir = undefined;
 
 	//attributes
 	this.vertices = new Float32Array( this.maxPoints * 6);
@@ -122,20 +122,13 @@ function Branch(sp){
 			}
 		}
 
-		this.vertices[0] = this.startPos.x; ///p.x + norm.x * n;
-		this.vertices[1] = this.startPos.y; //p.y + norm.y * n;
-		this.vertices[2] = 0.;
 
-		//a copy
-		this.vertices[3] = this.vertices[0];
-		this.vertices[4] = this.vertices[1];
-		this.vertices[5] = 0.;
-
-
-		this.endPos.set(this.startPos);
+		this.endPos = new THREE.Vector2().copy(this.startPos);
 
 		this.geometry = new THREE.BufferGeometry();
 		this.geometry.dynamic = true;
+
+		this.geometry.setDrawRange (0, 0); 
 
 		//overriden attributes
 		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.vertices, 3 ) );
@@ -150,37 +143,56 @@ function Branch(sp){
 	this.updateVertices = function(pos)
 	{
 
-		//var p = new THREE.Vector2().copy(this.startPos);
-		//var norm = new THREE.Vector2(-this.incr.y, this.incr.x).normalize();
-		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
+		if(this.endPos === undefined)return;
+		
+		var v = new THREE.Vector2().subVectors(pos, this.endPos);
+
+		if(v.length() < 0.01)return; //no movement
+
 		if(this.numPoints == this.maxPoints)return;
 
-		var v = new THREE.Vector2().subVectors(pos, this.endPos).normalize().multiplyScalar(0.005);
-		var np = new THREE.Vector2().copy(this.endPos).add(v);
+		//test for angles
+		if(this.dir)
+		{
+			var c = v.dot(this.dir);
+			if(c < 0.001){
+				//v.lerp(this.dir, 0.95);
+				//v.normalize();
+				//TODO ... the point to start a new branch
+				return;
+			}
+			this.dir = v;
+		}
+		else
+		{
+			this.dir = v;
+		}
 
-		this.endPos.copy(pos);
+
+		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
+		
+		v.setLength(0.01);
+		var np = new THREE.Vector2().copy(this.endPos).add(v);
 
 
 		this.uniforms.thickness.value = Math.max(0.001 , (this.numPoints/this.maxPoints) * 0.02);
 		var i = this.numPoints - 1;
 
-
-		//NB. will need to change if noise is variable
+		//TODO move noise function to vertex shader
 		//var n = noise.simplex2((i+1) * this.step * 5. , this.seed * 13.35433 ) * this.noise_mul * Math.sin(i/this.maxPoints * Math.PI);
 
-		this.vertices[i * 6 + 0] = np.x; ///p.x + norm.x * n;
-		this.vertices[i * 6 + 1] = np.y; //p.y + norm.y * n;
+		this.vertices[i * 6 + 0] = np.x; 
+		this.vertices[i * 6 + 1] = np.y; 
 		this.vertices[i * 6 + 2] = 0.;
 
 		//a copy
-		this.vertices[i * 6 + 3] = this.vertices[i * 6 + 0];
-		this.vertices[i * 6 + 4] = this.vertices[i * 6 + 1];
+		this.vertices[i * 6 + 3] = np.x;
+		this.vertices[i * 6 + 4] = np.y;
 		this.vertices[i * 6 + 5] = 0.;
 
 		//p.add(this.incr);
 
-
-		if(this.numPoints < 3)return;
+		if(this.numPoints < 2)return;
 
 		var ppi = i - 2;
 		var pi = i - 1;
@@ -257,6 +269,8 @@ function Branch(sp){
 		this.geometry.attributes.miter.needsUpdate = true;
 		this.geometry.attributes.miter_dims.needsUpdate = true;
 
+		this.endPos.copy(np);
+
 
 	}
 
@@ -280,7 +294,7 @@ function Branch(sp){
 
 	}
 
-	this.createGeometry();
+	
 	
 
 	for(var u in uniforms)
@@ -296,16 +310,9 @@ function Branch(sp){
 		transparent: true
 	});
 
+	this.createGeometry();
 	this.mesh = new THREE.Mesh( this.geometry, this.material );
 
-
-
-	this.update = function(){
-
-		
-		
-
-	}
 
 
 }
@@ -316,7 +323,12 @@ function Branch(sp){
 
 
 var branches = [];
-var numBranches = 1;
+var numBranches;
+//var pen = new THREE.Vector2(0,0);
+
+//cbranch = new Branch(pen);
+//branches.push(cbranch);
+//scene.add(cbranch.mesh);
 
 //var sp = new THREE.Vector2(0,0);
 
@@ -341,8 +353,9 @@ function render() {
 	uniforms.mouse.value = mousePos;
 
 	//console.log(ellapsedTime);
-
-
+	//pen.x += 0.01;
+	//pen.y += noise.simplex2(ellapsedTime * 5., 2.) * 0.01;
+	//if(ellapsedTime > 0.01)cbranch.updateVertices(pen);
 	
 
 	renderer.render( scene, camera );

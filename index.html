@@ -28,6 +28,7 @@
 			    gl_Position = vec4(p.xy, 0.0, 1.0);
 			    o_m_prog = sign(miter_dims);
 			    o_line_prog = line_prog;
+			    gl_PointSize = 10.0;
 			}
 
 		</script>
@@ -61,6 +62,7 @@
 				vec3 m = mix(color1, color2, v);
 				float alpha = (1.0 - pow(d,f));
 				gl_FragColor = vec4(m * alpha,alpha);
+				//gl_FragColor = vec4(1.0);
 				
 			}
 

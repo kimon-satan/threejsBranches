@@ -1,5 +1,6 @@
 
 
+
 var renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
@@ -28,9 +29,15 @@ canvas.addEventListener("touchstart", function (e) {
 camera = new THREE.Camera();
 camera.position.z = 1;
 
-var numPoints = 100;
+var numPoints = 500;
 
 scene = new THREE.Scene();
+
+
+//////////////////////////////////////////////////////////////////BRANCH//////////////////////////////////////////////////////////////////
+
+function Branch(){
+}
 
 var mshape = new THREE.Shape();
 mshape.moveTo(  -.5, 0 , 0);
@@ -41,7 +48,8 @@ mshape.lineTo(-.25,-.7,0);*/
 for(var i = 0; i < numPoints; i++)
 {
 	var incr = 1.0/numPoints;
-	mshape.lineTo( -.5 + (i + 1) * incr, Math.sin(incr * ( i+1)  * Math.PI * 4.) * .25, 0);
+	var y = noise.simplex2((i+1) * incr * 2.5 , 0.) * 0.5;
+	mshape.lineTo( -.5 + (i + 1) * incr, y, 0);
 }
 
 var points = mshape.extractAllPoints();
@@ -181,7 +189,7 @@ var uniforms = {
 	resolution: { value: new THREE.Vector2() },
 	mouse:  	{value: mousePos },
 	scale:      {value: 2.0, gui: true, min: 1.0, max: 10.0},
-	thickness:  {value: 0.05, gui: true, min: 0.01, max: 1.0}
+	thickness:  {value: 0.01, gui: true, min: 0.001, max: 0.1, step: 0.001}
 	
 };
 
@@ -219,11 +227,11 @@ function render() {
 	//console.log(ellapsedTime);
 	
 	var gl = renderer.context;
-	//var ext = gl.getExtension("EXT_blend_minmax");
+	var ext = gl.getExtension("EXT_blend_minmax");
   	gl.enable(gl.BLEND);
 
-	//gl.blendEquation(ext.MAX_EXT);
-  	gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
+	gl.blendEquationSeparate(ext.MAX_EXT, ext.MAX_EXT);
+  	//gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
   	
   	//gl.blendColor(0,0,0,1);
 

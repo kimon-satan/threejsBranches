@@ -56,8 +56,12 @@
 				
 
 				float f = 0.5 + cos(line_d * TWO_PI + PI) * 0.5;
-
-				gl_FragColor = vec4(o_color, 1.0 - pow(dist,f));
+				float d = pow(dist, 2.5);
+				vec3 col1 = vec3(1.0,0.45,0.40);
+				vec3 col2 = vec3(0.2,0.75,0.25);
+				float v = 0.5 + sin(line_d * TWO_PI * 8.0) * 0.5;
+				vec3 m = mix(col1, col2, v);
+				gl_FragColor = vec4( m * (1.0 - pow(d,f)),1.0);
 				
 			}
 
@@ -65,6 +69,7 @@
 
 	</head>
 	<body>
+		<script type="text/javascript" src="perlin.js"></script>
 		<script type="text/javascript" src="dat.gui.min.js"></script>
 		<script src="three.min.js"></script>
 		<script type="text/javascript" src="main.js"></script>

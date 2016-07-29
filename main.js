@@ -10,6 +10,8 @@ var height = window.innerHeight;
 var canvas;
 var mousePos = new THREE.Vector2(0,0);
 var cbranch = null;
+var branches = [];
+var numBranches;
 var mousedown = false;
 
 canvas = renderer.domElement;
@@ -18,7 +20,7 @@ canvas.addEventListener("mousedown", function (e) {
       
     if(!mousedown){
 		mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
-
+		    newBranch();
 	    mousedown = true;
 	}
  }, false);
@@ -56,6 +58,7 @@ canvas.addEventListener("mousemove", function (e) {
 canvas.addEventListener("mouseup", function (e) {
 	mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
     mousedown = false;
+
 
  }, false);
 
@@ -175,33 +178,6 @@ function Branch(sp){
 
 		if(this.numPoints == this.maxPoints)return;
 
-		//test for angles
-		/*if(this.dir)
-		{
-			var c = v.dot(this.dir);
-			if(c < 0.0008){
-				//v.lerp(this.dir, 0.95);
-				//v.normalize();
-				//TODO ... the point to start a new branch
-				if(this.numPoints > this.maxPoints * 0.2)
-				{	
-					//console.log("new branch");
-					//cbranch = new Branch(pos); 
-					//branches.push(cbranch);
-	    			//scene.add(cbranch.mesh);
-				}
-				else
-				{
-					//console.log(c);
-				}
-				return;
-			}
-			this.dir = v;
-		}
-		else
-		{
-			this.dir = v;
-		}*/
 		this.dir = v;
 
 		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
@@ -214,7 +190,7 @@ function Branch(sp){
 		var i = this.numPoints - 1;
 
 		//TODO move noise function to vertex shader
-		//var n = noise.simplex2((i+1) * this.step * 5. , this.seed * 13.35433 ) * this.noise_mul * Math.sin(i/this.maxPoints * Math.PI);
+
 
 		this.vertices[i * 6 + 0] = np.x; 
 		this.vertices[i * 6 + 1] = np.y; 
@@ -309,6 +285,20 @@ function Branch(sp){
 
 	}
 
+	this.growOut = function()
+	{
+
+		if(this.endPos === undefined || this.numPoints < 10 || this.numPoints == this.maxPoints )return;
+
+		var n = noise.simplex2(this.numPoints * 10.0/this.maxPoints  , this.seed );
+		var np = new THREE.Vector2().copy(this.endPos).add(this.dir) 
+		np.add( new THREE.Vector2(-this.dir.y , this.dir.x).multiplyScalar(n * 0.01) );
+
+		this.updateVertices(np);
+
+	
+	}
+
 
 	this.recalLPs = function()
 	{
@@ -368,25 +358,46 @@ function Crawler(){
 	this.velocity = 0.005;
 	this.branch = null;
 
+	this.noise_mul = 0.2;
+	this.noise_step = 7.;
+	this.travelled = 0;
 
 	this.update = function(){
 
 		//update the new position
 		//var np = new THREE.Vector3(Math.sin(ellapsedTime) * 0.25, Math.cos(ellapsedTime) * 0.25, 0);
 		//this.direction.subVectors(np, this.position).normalize();
-		var inc = new THREE.Vector3().copy(this.direction).multiplyScalar(this.accelEnv.z * this.velocity);
-		this.position.add(inc);
-		this.arrowHelper.position.set(this.position.x, this.position.y, 0);
+
 		
 	
 		//this.position = np;
 		this.accelEnv.step();
 
+
 		if(this.accelEnv.z > 0.001)
 		{
+			var detune = new THREE.Vector3(
+				noise.simplex2(this.travelled * this.noise_step , 0. ), 
+				noise.simplex2(1.0 + this.travelled * this.noise_step , 0. ), 0
+				);
+
+
+			detune.normalize();
+			detune.multiplyScalar(this.accelEnv.z * this.noise_mul);
+			detune.add(this.direction);
+			detune.normalize();
+
+			var inc = new THREE.Vector3().copy(detune).multiplyScalar(this.accelEnv.z * this.velocity);
+			this.travelled += inc.length();
+			//console.log(this.travelled);
+			this.position.add(inc);
+			this.arrowHelper.position.set(this.position.x, this.position.y, 0);
+
+		
+
+			this.arrowHelper.setDirection(detune);
 			this.branch.updateVertices(this.position);
 		}
-		//console.log(this.position)
 
 	}
 
@@ -407,6 +418,7 @@ function Crawler(){
 
 		this.direction.normalize();
 		this.arrowHelper.setDirection(this.direction);
+		
 	
 	}
 
@@ -415,21 +427,22 @@ function Crawler(){
 /////////////////////////
 
 var crawler = new Crawler();
-
 scene.add( crawler.arrowHelper );
 
+function newBranch(){
 
-crawler.branch = new Branch(crawler.position);
+	crawler.branch = new Branch(crawler.position);
+	branches.push(crawler.branch);
+	scene.add(crawler.branch.mesh);
 
-scene.add(crawler.branch.mesh);
+}
 
-
+newBranch();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-var branches = [];
-var numBranches;
+
 //var pen = new THREE.Vector2(0,0);
 
 //cbranch = new Branch(pen);
@@ -464,6 +477,10 @@ function render() {
 	//pen.y += noise.simplex2(ellapsedTime * 5., 2.) * 0.01;
 	//if(ellapsedTime > 0.01)cbranch.updateVertices(pen);
 	
+	for(var i =0; i < branches.length; i++)
+	{
+		if(crawler.branch !== branches[i])branches[i].growOut();
+	}
 
 	renderer.render( scene, camera );
 	requestAnimationFrame( render );

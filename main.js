@@ -17,12 +17,8 @@ canvas = renderer.domElement;
 canvas.addEventListener("mousedown", function (e) {
       
     if(!mousedown){
-	    mousePos.set(e.clientX/width, e.clientY/height);
-	    mousePos.add(new THREE.Vector2(-.5 , -.5)).multiply(new THREE.Vector2(2.0 * width/height, -2.0));
+		mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
 
-	    cbranch = new Branch(mousePos);
-	    branches.push(cbranch);
-	    scene.add(cbranch.mesh);
 	    mousedown = true;
 	}
  }, false);
@@ -32,19 +28,33 @@ canvas.addEventListener("mousedown", function (e) {
 canvas.addEventListener("mousemove", function (e) {
      
      if(mousedown){
-	    mousePos.set(e.clientX/width, e.clientY/height);
-	    mousePos.add(new THREE.Vector2(-.5 , -.5)).multiply(new THREE.Vector2(2.0 * width/height, -2.0));
+		var np = new THREE.Vector2(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
+	
 
-   		cbranch.updateVertices(mousePos);
+		var dir = new THREE.Vector2().subVectors(np,mousePos);
+		var l = dir.length();
+		if(dir.length() < 0.05)return;
+
+		dir.normalize();
+
+		var a = dir.angle() - Math.PI/2;
+
+
+    	mousePos.set(np.x, np.y);
+
+
+   		if(Math.abs(a) < 0.3){
+			crawler.rotate(l);
+		}else if(Math.abs(a - Math.PI) < 0.3){
+			crawler.rotate(-l);
+		}
+
 	}
 
  }, false);
 
 canvas.addEventListener("mouseup", function (e) {
-        
-	mousePos.set(e.clientX/width, e.clientY/height);
-	mousePos.add(new THREE.Vector2(-.5 , -.5)).multiply(new THREE.Vector2(2.0 * width/height, -2.0));
-    cbranch = null;
+	mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
     mousedown = false;
 
  }, false);
@@ -56,9 +66,23 @@ canvas.addEventListener("touchstart", function (e) {
 
 }, false);
 
+document.addEventListener("keydown", function(e) {
+   	
+   	crawler.startAccelerate();
 
-camera = new THREE.Camera();
-camera.position.z = 1;
+
+}, true);
+
+document.addEventListener("keyup", function(e) {
+
+   crawler.endAccelerate();
+
+}, true);
+
+
+camera = new THREE.OrthographicCamera(
+	-width/height, width/height , 1.0, -1.0, - 500, 1000);
+camera.position.set = (0,0,-1);
 
 
 scene = new THREE.Scene();
@@ -81,7 +105,7 @@ uniforms.resolution.value.y = renderer.domElement.height;
 function Branch(sp){
 
 
-	this.maxPoints = 300;
+	this.maxPoints = 1000;
 	this.numPoints = 0; 
 	this.startPos = sp;
 	this.endPos = undefined;
@@ -147,18 +171,29 @@ function Branch(sp){
 		
 		var v = new THREE.Vector2().subVectors(pos, this.endPos);
 
-		if(v.length() < 0.01)return; //no movement
+		if(v.length() < 0.001)return; //no movement
 
 		if(this.numPoints == this.maxPoints)return;
 
 		//test for angles
-		if(this.dir)
+		/*if(this.dir)
 		{
 			var c = v.dot(this.dir);
-			if(c < 0.001){
+			if(c < 0.0008){
 				//v.lerp(this.dir, 0.95);
 				//v.normalize();
 				//TODO ... the point to start a new branch
+				if(this.numPoints > this.maxPoints * 0.2)
+				{	
+					//console.log("new branch");
+					//cbranch = new Branch(pos); 
+					//branches.push(cbranch);
+	    			//scene.add(cbranch.mesh);
+				}
+				else
+				{
+					//console.log(c);
+				}
 				return;
 			}
 			this.dir = v;
@@ -166,12 +201,12 @@ function Branch(sp){
 		else
 		{
 			this.dir = v;
-		}
-
+		}*/
+		this.dir = v;
 
 		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
 		
-		v.setLength(0.01);
+		//v.setLength(0.01);
 		var np = new THREE.Vector2().copy(this.endPos).add(v);
 
 
@@ -317,6 +352,77 @@ function Branch(sp){
 
 }
 
+////////////////////////////////////////////////Testing Crawler/////////////////////////////////////////////
+
+
+function Crawler(){
+
+	this.geometry = new THREE.CircleGeometry( .1, 32, Math.PI * 1.15, Math.PI / 1.5 );
+	//this.material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+	this.position = new THREE.Vector3(-1.0,0,0);
+	this.direction = new THREE.Vector3(1,0,0);
+
+	this.arrowHelper = new THREE.ArrowHelper( this.direction, this.position, 0.25, 0xffff00 );
+	this.arrowHelper.setLength(0.25, 0.1,0.1);
+	this.accelEnv = new Envelope2(0.25, 1., 60);
+	this.velocity = 0.005;
+	this.branch = null;
+
+
+	this.update = function(){
+
+		//update the new position
+		//var np = new THREE.Vector3(Math.sin(ellapsedTime) * 0.25, Math.cos(ellapsedTime) * 0.25, 0);
+		//this.direction.subVectors(np, this.position).normalize();
+		var inc = new THREE.Vector3().copy(this.direction).multiplyScalar(this.accelEnv.z * this.velocity);
+		this.position.add(inc);
+		this.arrowHelper.position.set(this.position.x, this.position.y, 0);
+		
+	
+		//this.position = np;
+		this.accelEnv.step();
+
+		if(this.accelEnv.z > 0.001)
+		{
+			this.branch.updateVertices(this.position);
+		}
+		//console.log(this.position)
+
+	}
+
+	this.startAccelerate = function(){
+		this.accelEnv.targetVal = 1.0;
+	}
+
+	this.endAccelerate = function(){
+		this.accelEnv.targetVal = 0.0;
+	}
+
+	this.rotate = function(dir){
+
+		var theta = Math.PI * dir;
+
+		this.direction.x  += Math.cos(theta) * this.direction.x - Math.sin(theta) * this.direction.y;
+		this.direction.y  += Math.sin(theta) * this.direction.x + Math.cos(theta) * this.direction.y;
+
+		this.direction.normalize();
+		this.arrowHelper.setDirection(this.direction);
+	
+	}
+
+}
+
+/////////////////////////
+
+var crawler = new Crawler();
+
+scene.add( crawler.arrowHelper );
+
+
+crawler.branch = new Branch(crawler.position);
+
+scene.add(crawler.branch.mesh);
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -352,6 +458,7 @@ function render() {
 	uniforms.time.value = ellapsedTime;
 	uniforms.mouse.value = mousePos;
 
+	crawler.update();
 	//console.log(ellapsedTime);
 	//pen.x += 0.01;
 	//pen.y += noise.simplex2(ellapsedTime * 5., 2.) * 0.01;
@@ -468,5 +575,82 @@ function hexToFloat(hex) {
          parseInt(result[3], 16)/255.
         ]
     	: null;
+}
+
+/*------------------------------------------------ONE POLE -----------------------------------*/
+
+//for enveloping
+
+function Envelope(time, sampleRate)
+{
+  this.a  = 0;
+  this.b = 0;
+  this.z = 0.0;
+  this.time = time;
+  this.targetVal = 0.0;
+  this.sampleRate = sampleRate; 
+
+
+  this.step = function()
+  {
+    this.z = this.targetVal * this.a + this.z * this.b; 
+    return this.z;
+  }
+
+  this.setTime = function()
+  {
+    this.b = Math.exp(-1.0/(this.time * this.sampleRate));
+    this.a = 1.0 - this.b;
+  }
+
+  this.setTime(this.time);
+
+}
+
+//////////////////////Different attacks and decays/////////////////////////
+
+function Envelope2(attTime, decTime, sampleRate)
+{
+  this.a_att  = 0;
+  this.b_att = 0;
+  this.a_dec  = 0;
+  this.b_dec = 0;
+
+  this.z = 0.0;
+
+  this.targetVal = 0.0;
+  this.sampleRate = sampleRate; 
+
+
+  this.step = function()
+  {
+    if(this.targetVal == this.z)
+    {
+      return
+    }
+    else if(this.targetVal < this.z)
+    {
+      this.z = this.targetVal * this.a_dec + this.z * this.b_dec; 
+    }
+    else
+    {
+      this.z = this.targetVal * this.a_att + this.z * this.b_att; 
+    }
+ 
+  }
+
+  this.setAttDel = function(attTime, decTime)
+  {
+    this.attTime = attTime;
+    this.decTime = decTime;
+
+    this.b_att = Math.exp(-1.0/(attTime * this.sampleRate));
+    this.a_att = 1.0 - this.b_att;
+    this.b_dec = Math.exp(-1.0/(decTime * this.sampleRate));
+    this.a_dec = 1.0 - this.b_dec;
+  }
+
+  this.setAttDel(attTime, decTime);
+
 }
 

@@ -170,6 +170,8 @@ function Branch(sp){
 	this.updateVertices = function(pos)
 	{
 
+		//MOVE some of this into grow out
+
 		if(this.endPos === undefined)return;
 		
 		var v = new THREE.Vector2().subVectors(pos, this.endPos);
@@ -288,11 +290,14 @@ function Branch(sp){
 	this.growOut = function()
 	{
 
+		//TODO: optimise this
+
 		if(this.endPos === undefined || this.numPoints < 10 || this.numPoints == this.maxPoints )return;
 
-		var n = noise.simplex2(this.numPoints * 10.0/this.maxPoints  , this.seed );
+		var n = noise.simplex2(this.numPoints/this.maxPoints * 10.  , this.seed );
 		var np = new THREE.Vector2().copy(this.endPos).add(this.dir) 
-		np.add( new THREE.Vector2(-this.dir.y , this.dir.x).multiplyScalar(n * 0.01) );
+		var inc = new THREE.Vector2(-this.dir.y , this.dir.x).multiplyScalar(n * 0.03);
+		np.add(inc);
 
 		this.updateVertices(np);
 
@@ -358,44 +363,29 @@ function Crawler(){
 	this.velocity = 0.005;
 	this.branch = null;
 
-	this.noise_mul = 0.2;
-	this.noise_step = 7.;
+	this.noise_mul = 0.03;
+	this.noise_step = 10.0;
 	this.travelled = 0;
+	this.seed = Math.random();
 
 	this.update = function(){
 
-		//update the new position
-		//var np = new THREE.Vector3(Math.sin(ellapsedTime) * 0.25, Math.cos(ellapsedTime) * 0.25, 0);
-		//this.direction.subVectors(np, this.position).normalize();
-
-		
-	
-		//this.position = np;
 		this.accelEnv.step();
-
 
 		if(this.accelEnv.z > 0.001)
 		{
-			var detune = new THREE.Vector3(
-				noise.simplex2(this.travelled * this.noise_step , 0. ), 
-				noise.simplex2(1.0 + this.travelled * this.noise_step , 0. ), 0
-				);
 
-
-			detune.normalize();
-			detune.multiplyScalar(this.accelEnv.z * this.noise_mul);
-			detune.add(this.direction);
-			detune.normalize();
-
-			var inc = new THREE.Vector3().copy(detune).multiplyScalar(this.accelEnv.z * this.velocity);
+			var n = noise.simplex2(this.travelled * this.noise_step  , this.seed ) * this.noise_mul * Math.pow(this.accelEnv.z, 0.5);
+			var detune = new THREE.Vector3(-this.direction.y, this.direction.x , 0).multiplyScalar(n);
+			this.direction.add(detune).normalize();
+			var inc = new THREE.Vector3().copy(this.direction).multiplyScalar(this.accelEnv.z * this.velocity);
+			var l = inc.length();
 			this.travelled += inc.length();
-			//console.log(this.travelled);
+			
 			this.position.add(inc);
+			
 			this.arrowHelper.position.set(this.position.x, this.position.y, 0);
-
-		
-
-			this.arrowHelper.setDirection(detune);
+			this.arrowHelper.setDirection(this.direction);
 			this.branch.updateVertices(this.position);
 		}
 

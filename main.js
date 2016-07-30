@@ -20,7 +20,8 @@ canvas.addEventListener("mousedown", function (e) {
       
     if(!mousedown){
 		mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
-		    newBranch();
+		newBranch();
+		crawler.startAccelerate();
 	    mousedown = true;
 	}
  }, false);
@@ -33,7 +34,7 @@ canvas.addEventListener("mousemove", function (e) {
 		var np = new THREE.Vector2(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
 	
 
-		var dir = new THREE.Vector2().subVectors(np,mousePos);
+		/*var dir = new THREE.Vector2().subVectors(np,mousePos);
 		var l = dir.length();
 		if(dir.length() < 0.05)return;
 
@@ -49,7 +50,7 @@ canvas.addEventListener("mousemove", function (e) {
 			crawler.rotate(l);
 		}else if(Math.abs(a - Math.PI) < 0.3){
 			crawler.rotate(-l);
-		}
+		}*/
 
 	}
 
@@ -58,6 +59,7 @@ canvas.addEventListener("mousemove", function (e) {
 canvas.addEventListener("mouseup", function (e) {
 	mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
     mousedown = false;
+     crawler.endAccelerate();
 
 
  }, false);
@@ -70,15 +72,12 @@ canvas.addEventListener("touchstart", function (e) {
 }, false);
 
 document.addEventListener("keydown", function(e) {
-   	
-   	crawler.startAccelerate();
 
 
 }, true);
 
 document.addEventListener("keyup", function(e) {
-
-   crawler.endAccelerate();
+ 
 
 }, true);
 
@@ -119,7 +118,10 @@ function Branch(sp){
 	this.indexes = new Uint16Array( (this.maxPoints - 1)  * 6);
 	this.miters = new Float32Array( this.maxPoints * 2 * 2);
 	this.miter_dims = new Float32Array( this.maxPoints * 2);
-	this.line_prog = new Float32Array( this.maxPoints * 2);
+
+	this.loc_line_prog = new Float32Array( this.maxPoints * 2);
+	this.glob_line_prog = new Float32Array( this.maxPoints * 2);
+	
 	this.noise_mul = 0.01 + Math.random() * 0.04;
 	this.seed = Math.random();
 
@@ -154,6 +156,10 @@ function Branch(sp){
 			this.miters[i * 4 + 3] = 0; 
 			this.miter_dims[i * 2] = 0;
 			this.miter_dims[i * 2 + 1] = 0;
+
+			this.glob_line_prog[i * 2] = i/this.maxPoints;
+			this.glob_line_prog[i * 2 + 1] = i/this.maxPoints;
+
 		}
 
 
@@ -162,63 +168,64 @@ function Branch(sp){
 		this.geometry = new THREE.BufferGeometry();
 		this.geometry.dynamic = true;
 
-		this.geometry.setDrawRange (0, 0); 
+
 
 		//overriden attributes
 		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.vertices, 3 ) );
 		this.geometry.addAttribute('index', new THREE.BufferAttribute( this.indexes, 1));
 		
 		//custom attributes
-		this.geometry.addAttribute( 'line_prog', new THREE.BufferAttribute( this.line_prog, 1 ) );
+		this.geometry.addAttribute( 'loc_line_prog', new THREE.BufferAttribute( this.loc_line_prog, 1 ) );
+		this.geometry.addAttribute( 'glob_line_prog', new THREE.BufferAttribute( this.glob_line_prog, 1 ) );
 		this.geometry.addAttribute( 'miter', new THREE.BufferAttribute( this.miters, 2 ) );
 		this.geometry.addAttribute( 'miter_dims', new THREE.BufferAttribute( this.miter_dims, 1 ) );
+
+		this.geometry.addGroup(0, 0, 0);
+	}
+
+	this.newGroup = function(){
+
+
+		var lg = this.geometry.groups[this.geometry.groups.length -1];
+		var idx = lg.start + lg.count;
+		this.geometry.clearGroups(); //we shouldn't need to do this ... ugh // do another test somewhere
+		this.geometry.addGroup(lg.start, lg.count -12, 0);
+		this.geometry.addGroup(idx + 6, 0, 0);
+
+		//lg.start = 0; 
+		//lg.count = 0;
 	}
 
 	this.updateVertices = function(pos)
 	{
 
+		//TIDY UP THIS FUNCTION
 		//MOVE some of this into grow out
-
-		if(this.endPos === undefined)return;
-		
-		var v = new THREE.Vector2().subVectors(pos, this.endPos);
-
-		if(v.length() < 0.001)return; //no movement
-
-		if(this.numPoints == this.maxPoints)return;
-
-		this.dir = v;
 
 		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
 
-		if(this.numPoints > 10 )this.mesh.visible = true;
-		
-		//v.setLength(0.01);
-		var np = new THREE.Vector2().copy(this.endPos).add(v);
-
-
 		this.uniforms.thickness.value = Math.max(0.001 , (this.numPoints/this.maxPoints) * 0.02);
+
 		var i = this.numPoints - 1;
 
+		this.geometry.groups[this.geometry.groups.length -1].count += 6;
+	
+		//console.log(this.geometry.groups[this.geometry.groups.length - 1].count);
 		//TODO move noise function to vertex shader
 
-
-		this.vertices[i * 6 + 0] = np.x; 
-		this.vertices[i * 6 + 1] = np.y; 
+		this.vertices[i * 6 + 0] = pos.x; 
+		this.vertices[i * 6 + 1] = pos.y; 
 		this.vertices[i * 6 + 2] = 0.;
 
 		//a copy
-		this.vertices[i * 6 + 3] = np.x;
-		this.vertices[i * 6 + 4] = np.y;
+		this.vertices[i * 6 + 3] = pos.x;
+		this.vertices[i * 6 + 4] = pos.y;
 		this.vertices[i * 6 + 5] = 0.;
-
-		//p.add(this.incr);
 
 		if(this.numPoints < 2)return;
 
 		var ppi = i - 2;
 		var pi = i - 1;
-		
 
 		var p0 = new THREE.Vector2(this.vertices[ppi * 6], this.vertices[ppi*6+1]);
 		var p1 = new THREE.Vector2(this.vertices[pi * 6], this.vertices[pi*6+1]);
@@ -245,22 +252,20 @@ function Branch(sp){
 		this.miter_dims[i * 2 + 1] = -1.0;
 		
 		
-	
 		if(this.numPoints == 3)
 		{
 			//construct first normal using the following segment
 			
-			this.miters[0] = -b.y;
-			this.miters[1] = b.x; 
-			this.miters[2] = -b.y;
-			this.miters[3] = b.x;  
-			this.miter_dims[0] = 1.0;
-			this.miter_dims[1] = -1.0;
+			this.miters[ppi] = -b.y;
+			this.miters[ppi + 1] = b.x; 
+			this.miters[ppi + 2] = -b.y;
+			this.miters[ppi + 3] = b.x;  
+			this.miter_dims[ppi] = 1.0;
+			this.miter_dims[ppi + 1] = -1.0;
 		
 		}
-	
 
-		//all other points
+		//for all other points
 
 		var tang = new THREE.Vector2();
 		tang.addVectors(a,b);
@@ -281,17 +286,15 @@ function Branch(sp){
 		this.miter_dims[pi * 2] = l;
 		this.miter_dims[pi * 2 + 1] = -l; //signed to flip the vertex
 
-		
+		this.recalLPs();
 
-		if(this.numPoints < this.maxPoints)this.recalLPs();
-		this.geometry.setDrawRange (0, this.numPoints * 6); 
+		this.geometry.groupsNeedUpdate = true;
 		this.geometry.attributes.position.needsUpdate = true;
-
-		this.geometry.attributes.line_prog.needsUpdate = true;
+		this.geometry.attributes.loc_line_prog.needsUpdate = true;
 		this.geometry.attributes.miter.needsUpdate = true;
 		this.geometry.attributes.miter_dims.needsUpdate = true;
 
-		this.endPos.copy(np);
+		this.endPos.copy(pos);
 
 
 	}
@@ -308,6 +311,35 @@ function Branch(sp){
 		var inc = new THREE.Vector2(-this.dir.y , this.dir.x).multiplyScalar(n * 0.03);
 		np.add(inc);
 
+		/*//WRAPPING
+		console.log(np);
+
+		var isNewGroup = false;
+		//wrapp the geometry
+		if(np.x > width/height)
+		{
+			np.x -= width * 2.0/height;
+			isNewGroup = true;
+		}
+		else if(np.x < -width/height)
+		{
+			np.x += width * 2.0/height;
+			isNewGroup = true;
+		}
+		
+		if(np.y > 1.0)
+		{
+			np.y -= 2.0;
+			isNewGroup = true;
+		}
+		else if(np.y < -1.0)
+		{
+			np.x += 2.0;
+			isNewGroup = true;
+		}*/
+
+
+
 		this.updateVertices(np);
 
 	
@@ -321,19 +353,17 @@ function Branch(sp){
 		//NB. might be more useful in relation to maxPoints with a uniform for the progress
 		for(var i = 0; i < this.numPoints; i++)
 		{
-			this.line_prog[i * 2] = i/this.numPoints;
-			this.line_prog[i * 2 + 1] = i/this.numPoints;
+			this.loc_line_prog[i * 2] = i/this.numPoints;
+			this.loc_line_prog[i * 2 + 1] = i/this.numPoints;
 		}
 
 		for(var i = this.numPoints; i < this.maxPoints; i++)
 		{
-			this.line_prog[i * 2] = 1.0;
-			this.line_prog[i * 2 + 1] = 1.0;
+			this.loc_line_prog[i * 2] = 1.1;
+			this.loc_line_prog[i * 2 + 1] = 1.1;
 		}
 
 	}
-
-	
 	
 
 	for(var u in uniforms)
@@ -341,19 +371,19 @@ function Branch(sp){
 		this.uniforms[u] = uniforms[u]; //copy references to global uniforms
 	}
 
-	this.material = new THREE.ShaderMaterial( {
+	var m = [new THREE.ShaderMaterial( {
 		uniforms: this.uniforms,
 		vertexShader: document.getElementById( 'vertexShader' ).textContent,
 		fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
 		side:  THREE.DoubleSide,
 		transparent: true
-	});
+	}) ];
+
+	this.material = new THREE.MultiMaterial(m);
 
 	this.createGeometry();
 	this.recalLPs();
 	this.mesh = new THREE.Mesh( this.geometry, this.material );
-	this.mesh.visible = false;
-
 
 
 }
@@ -364,8 +394,8 @@ function Branch(sp){
 function Crawler(){
 
 
-	this.position = new THREE.Vector3(-1.0,0,0);
-	this.direction = new THREE.Vector3(1,0,0);
+	this.position = new THREE.Vector3(0.0,0.9,0);
+	this.direction = new THREE.Vector3(0,1,0);
 
 	this.arrowHelper = new THREE.ArrowHelper( this.direction, this.position, 0.25, 0xffff00 );
 	this.arrowHelper.setLength(0.25, 0.1,0.1);
@@ -400,7 +430,36 @@ function Crawler(){
 			this.travelled += inc.length();
 			
 			this.position.add(inc);
+
+			var isNewGroup = false;
+			//modulo the position to make a wrapped space
+			if(this.position.x < -width/height)
+			{
+				this.position.x += width/height * 2.0;
+				isNewGroup = true;
+			}
+			else if(this.position.x > width/height)
+			{
+				this.position.x -= width/height * 2.0;
+				isNewGroup = true;
+			}
+
+			if(this.position.y < -1.0)
+			{
+				this.position.y += 2.0;
+				isNewGroup = true;
+
+			}
+			else if(this.position.y > 1.0)
+			{
+				this.position.y -= 2.0;
+				isNewGroup = true;
+			}
 			
+			//if(this.branch.numPoints%100 == 0)this.branch.newGroup();
+
+			if(isNewGroup)this.branch.newGroup();
+
 			this.arrowHelper.position.set(this.position.x, this.position.y, 0);
 			this.arrowHelper.setDirection(this.direction);
 			this.branch.updateVertices(this.position);
@@ -445,8 +504,6 @@ function newBranch(){
 	scene.add(crawler.branch.mesh);
 
 }
-
-newBranch();
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

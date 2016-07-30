@@ -147,6 +147,13 @@ function Branch(sp){
 			{
 				this.vertices[i * 6 + j] = 0;
 			}
+
+			this.miters[i * 4] = 0;
+			this.miters[i * 4 + 1] = 0; 
+			this.miters[i * 4 + 2] = 0;
+			this.miters[i * 4 + 3] = 0; 
+			this.miter_dims[i * 2] = 0;
+			this.miter_dims[i * 2 + 1] = 0;
 		}
 
 
@@ -183,6 +190,8 @@ function Branch(sp){
 		this.dir = v;
 
 		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
+
+		if(this.numPoints > 10 )this.mesh.visible = true;
 		
 		//v.setLength(0.01);
 		var np = new THREE.Vector2().copy(this.endPos).add(v);
@@ -341,7 +350,9 @@ function Branch(sp){
 	});
 
 	this.createGeometry();
+	this.recalLPs();
 	this.mesh = new THREE.Mesh( this.geometry, this.material );
+	this.mesh.visible = false;
 
 
 
@@ -352,21 +363,23 @@ function Branch(sp){
 
 function Crawler(){
 
-	this.geometry = new THREE.CircleGeometry( .1, 32, Math.PI * 1.15, Math.PI / 1.5 );
-	//this.material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+
 	this.position = new THREE.Vector3(-1.0,0,0);
 	this.direction = new THREE.Vector3(1,0,0);
 
 	this.arrowHelper = new THREE.ArrowHelper( this.direction, this.position, 0.25, 0xffff00 );
 	this.arrowHelper.setLength(0.25, 0.1,0.1);
+
 	this.accelEnv = new Envelope2(0.25, 1., 60);
-	this.velocity = 0.005;
+	
+	this.velocity = 0.001;
 	this.branch = null;
 
 	this.noise_mul = 0.03;
 	this.noise_step = 10.0;
-	this.travelled = 0;
 	this.seed = Math.random();
+	this.travelled = 0.;
+
 
 	this.update = function(){
 
@@ -375,9 +388,13 @@ function Crawler(){
 		if(this.accelEnv.z > 0.001)
 		{
 
-			var n = noise.simplex2(this.travelled * this.noise_step  , this.seed ) * this.noise_mul * Math.pow(this.accelEnv.z, 0.5);
-			var detune = new THREE.Vector3(-this.direction.y, this.direction.x , 0).multiplyScalar(n);
-			this.direction.add(detune).normalize();
+
+			var n = noise.simplex2(this.travelled * this.noise_step  , this.seed );
+			n *= this.noise_mul * Math.pow(this.accelEnv.z, 0.5);
+			
+			var d_normal = new THREE.Vector3(-this.direction.y, this.direction.x , 0).multiplyScalar(n);
+			this.direction.add(d_normal).normalize(); //NB. recursive use of direction
+
 			var inc = new THREE.Vector3().copy(this.direction).multiplyScalar(this.accelEnv.z * this.velocity);
 			var l = inc.length();
 			this.travelled += inc.length();
@@ -388,6 +405,8 @@ function Crawler(){
 			this.arrowHelper.setDirection(this.direction);
 			this.branch.updateVertices(this.position);
 		}
+
+
 
 	}
 

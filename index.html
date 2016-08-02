@@ -22,7 +22,7 @@
 			attribute float glob_line_prog; //in relation to the whole line
 
 			uniform float thickness;
-			
+
 			varying float o_glob_line_prog;
 			varying float m_prog;
 			varying float inv_loc_prog;
@@ -35,6 +35,7 @@
 				vec2 p = position.xy * vec2(resolution.y/resolution.x, 1.0) * scale;
 				float a = max(0.01,abs(thickness/miter_dims)); //NB. this number probably needs adjusting in respect of resolution
 			    p += miter  *  a * sign(miter_dims);
+
 			    gl_Position = vec4(p.xy, 0.0, 1.0);
 			    m_prog = sign(miter_dims);
 
@@ -42,7 +43,7 @@
 			    o_glob_line_prog = glob_line_prog;
 
 			    col_mix = 0.5 + sin(pow(1.0 - o_glob_line_prog,0.5) * TWO_PI * col_freq) * 0.5;
-			    //gl_PointSize = 2.0;
+			    gl_PointSize = 3.0;
 			}
 
 		</script>
@@ -56,8 +57,8 @@
 			uniform vec3 color1;
 			uniform vec3 color2;
 			uniform float col_freq;
-			
-			
+
+
 			varying float o_glob_line_prog;
 			varying float m_prog;
 			varying float inv_loc_prog;
@@ -68,14 +69,14 @@
 
 			///////////////////////////////////HELPERS///////////////////////////////////
 
-	
+
 			void main()	{
 
 				float d = pow(m_prog, 2.5);
 				vec3 m = mix(color1, color2, col_mix);
 				float alpha = (1.0 - pow(d,inv_loc_prog)) * smoothstep(0.01,0.05, o_glob_line_prog);
 				gl_FragColor = vec4(m * alpha,alpha);
-				gl_FragColor = vec4(1.0);
+				//gl_FragColor = vec4(m ,1.0);
 			}
 
 		</script>

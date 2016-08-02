@@ -87,15 +87,16 @@ uniforms.resolution.value.y = renderer.domElement.height;
 
 //////////////////////////////////////////////////////////////////BRANCH//////////////////////////////////////////////////////////////////
 
-function Branch(sp){
+function Branch(crawler){
 
 
 	this.maxPoints = 500;
 	this.numPoints = 0;
-	this.startPos = sp;
+	this.startPos = crawler.position;
 	this.endPos = undefined;
 	this.direction = undefined;
   this.hasCrawler = true;
+  this.crawler = crawler;
 
 	//attributes
 	this.vertices = new Float32Array( this.maxPoints * 6);
@@ -112,8 +113,8 @@ function Branch(sp){
 	this.uniforms = {
 		thickness:  {value: 0.01},
 		col_freq: {value: 1.0  + Math.random() * 7.0 },
-		color1: {value: new THREE.Vector3(Math.random(), Math.random(), Math.random())},
-		color2: {value: new THREE.Vector3(Math.random(), Math.random(), Math.random())}
+		color1: {value: crawler.color1},
+		color2: {value: crawler.color2}
 	};
 
 
@@ -358,8 +359,7 @@ function Crawler(pos){
 	this.position = pos;
 	this.direction = new THREE.Vector3(0,1,0);
 
-	this.arrowHelper = new THREE.ArrowHelper( this.direction, this.position, 0.25, 0xffff00 );
-	this.arrowHelper.setLength(0.05,0.025,0.025);
+
 
 	this.accelEnv = new Envelope2(0.25, 1., 60);
 
@@ -370,6 +370,12 @@ function Crawler(pos){
 	this.noise_step = 10.0;
 	this.seed = Math.random();
 	this.travelled = 0.;
+
+  this.color1 =  new THREE.Color(Math.random(), Math.random(), Math.random());
+  this.color2 =  new THREE.Color(Math.random(), Math.random(), Math.random());
+
+  this.arrowHelper = new THREE.ArrowHelper( this.direction, this.position, 0.25, this.color1 );
+  this.arrowHelper.setLength(0.05,0.025,0.025);
 
 
 	this.update = function(){
@@ -470,7 +476,7 @@ function newBranch(crawler){
     crawler.branch.direction = new THREE.Vector2(crawler.direction.x, crawler.direction.y);
     crawler.branch.hasCrawler = false;
   }
-	crawler.branch = new Branch(crawler.position);
+	crawler.branch = new Branch(crawler);
 	branches.push(crawler.branch);
 	scene.add(crawler.branch.mesh);
   //scene.add(crawler.branch.pmesh);

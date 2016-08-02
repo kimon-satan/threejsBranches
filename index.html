@@ -13,6 +13,7 @@
 
 			uniform vec2 resolution;
 			uniform float scale;
+			uniform float time;
 			uniform float col_freq;
 
 			attribute vec2 miter;
@@ -33,7 +34,9 @@
 			void main()
 			{
 				vec2 p = position.xy * vec2(resolution.y/resolution.x, 1.0) * scale;
+
 				float a = max(0.01,abs(thickness/miter_dims)); //NB. this number probably needs adjusting in respect of resolution
+				a *= 0.75 + sin(time *2.0 - glob_line_prog * TWO_PI * 10.0) * 0.25; //blood flow !
 			    p += miter  *  a * sign(miter_dims);
 
 			    gl_Position = vec4(p.xy, 0.0, 1.0);

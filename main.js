@@ -9,8 +9,8 @@ var width = window.innerWidth;
 var height = window.innerHeight;
 var canvas;
 var mousePos = new THREE.Vector2(0,0);
-var cbranch = null;
 var branches = [];
+var crawlers = [];
 var numBranches;
 var mousedown = false;
 
@@ -21,8 +21,8 @@ canvas.addEventListener("mousedown", function (e) {
     if(!mousedown)
     {
   		mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
-  		newBranch();
-  		crawler.startAccelerate();
+  		//newBranch();
+  		//crawler.startAccelerate();
   	  mousedown = true;
 	  }
 
@@ -45,7 +45,7 @@ canvas.addEventListener("mousemove", function (e) {
 canvas.addEventListener("mouseup", function (e) {
 	mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
     mousedown = false;
-     crawler.endAccelerate();
+     //crawler.endAccelerate();
 
 
  }, false);
@@ -95,6 +95,7 @@ function Branch(sp){
 	this.startPos = sp;
 	this.endPos = undefined;
 	this.direction = undefined;
+  this.hasCrawler = true;
 
 	//attributes
 	this.vertices = new Float32Array( this.maxPoints * 6);
@@ -351,10 +352,10 @@ function Branch(sp){
 ////////////////////////////////////////////////Testing Crawler/////////////////////////////////////////////
 
 
-function Crawler(){
+function Crawler(pos){
 
 
-	this.position = new THREE.Vector3(0.0,0.9,0);
+	this.position = pos;
 	this.direction = new THREE.Vector3(0,1,0);
 
 	this.arrowHelper = new THREE.ArrowHelper( this.direction, this.position, 0.25, 0xffff00 );
@@ -423,6 +424,18 @@ function Crawler(){
 		this.accelEnv.targetVal = 0.0;
 	}
 
+  this.toggleAccelerate = function(){
+
+    if(this.accelEnv.targetVal == 1.0)
+    {
+      this.accelEnv.targetVal = 0.0;
+    }
+    else
+    {
+      this.accelEnv.targetVal = 1.0;
+    }
+  }
+
 	this.rotate = function(dir){
 
 		var theta = Math.PI * dir;
@@ -440,20 +453,27 @@ function Crawler(){
 
 /////////////////////////
 
-var crawler = new Crawler();
-scene.add( crawler.arrowHelper );
-newBranch();
 
-function newBranch(){
+
+for(var i = 0; i < 10; i++)
+{
+  var pos = new THREE.Vector3(-1 + Math.random() * 2.0, -1 + Math.random() * 2.0 , 0);
+  crawlers[i] = new Crawler(pos);
+  scene.add( crawlers[i].arrowHelper );
+  newBranch(crawlers[i]);
+  crawlers[i].startAccelerate();
+}
+
+function newBranch(crawler){
 
   if(crawler.branch !== null){
     crawler.branch.direction = new THREE.Vector2(crawler.direction.x, crawler.direction.y);
+    crawler.branch.hasCrawler = false;
   }
 	crawler.branch = new Branch(crawler.position);
 	branches.push(crawler.branch);
 	scene.add(crawler.branch.mesh);
   //scene.add(crawler.branch.pmesh);
-
 }
 
 function getModulo(p)
@@ -504,11 +524,21 @@ function render() {
 	uniforms.time.value = ellapsedTime;
 	uniforms.mouse.value = mousePos;
 
-	crawler.update();
+  for(var i =0; i < crawlers.length; i++)
+  {
+    crawlers[i].update();
+
+    if(Math.random() < 0.05){
+      crawlers[i].toggleAccelerate();
+      if(crawlers[i].accelEnv.targetVal == 1.0){
+        if(Math.random() < 0.05)newBranch(crawlers[i]);
+      }
+    }
+  }
 
 	for(var i =0; i < branches.length; i++)
 	{
-		if(crawler.branch !== branches[i])branches[i].growOut();
+		if(!branches[i].hasCrawler)branches[i].growOut();
 	}
 
 	renderer.render( scene, camera );

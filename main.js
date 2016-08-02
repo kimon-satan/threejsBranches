@@ -18,12 +18,14 @@ canvas = renderer.domElement;
 
 canvas.addEventListener("mousedown", function (e) {
 
-    if(!mousedown){
-		mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
-		//newBranch();
-		crawler.startAccelerate();
-	    mousedown = true;
-	}
+    if(!mousedown)
+    {
+  		mousePos.set(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
+  		newBranch();
+  		crawler.startAccelerate();
+  	  mousedown = true;
+	  }
+
  }, false);
 
 
@@ -32,25 +34,9 @@ canvas.addEventListener("mousemove", function (e) {
 
      if(mousedown){
 		var np = new THREE.Vector2(e.clientX * 2.0/height - width/height, -e.clientY * 2./height + 1.);
+	mousePos.set(np.x, np.y);
 
 
-		/*var dir = new THREE.Vector2().subVectors(np,mousePos);
-		var l = dir.length();
-		if(dir.length() < 0.05)return;
-
-		dir.normalize();
-
-		var a = dir.angle() - Math.PI/2;
-
-
-    	mousePos.set(np.x, np.y);
-
-
-   		if(Math.abs(a) < 0.3){
-			crawler.rotate(l);
-		}else if(Math.abs(a - Math.PI) < 0.3){
-			crawler.rotate(-l);
-		}*/
 
 	}
 
@@ -64,11 +50,9 @@ canvas.addEventListener("mouseup", function (e) {
 
  }, false);
 
-canvas.addEventListener("touchstart", function (e) {
-
+canvas.addEventListener("touchstart", function (e)
+{
     mousePos.set(e.touches[0].clientX /width, e.touches[0].clientY / height);
-    //console.log(mousePos);
-
 }, false);
 
 document.addEventListener("keydown", function(e) {
@@ -110,7 +94,7 @@ function Branch(sp){
 	this.numPoints = 0;
 	this.startPos = sp;
 	this.endPos = undefined;
-	this.dir = undefined;
+	this.direction = undefined;
 
 	//attributes
 	this.vertices = new Float32Array( this.maxPoints * 6);
@@ -167,8 +151,6 @@ function Branch(sp){
 		this.geometry = new THREE.BufferGeometry();
 		this.geometry.dynamic = true;
 
-
-
 		//overriden attributes
 		this.geometry.addAttribute( 'position', new THREE.BufferAttribute( this.vertices, 3 ) );
 		this.geometry.addAttribute('index', new THREE.BufferAttribute( this.indexes, 1));
@@ -184,32 +166,11 @@ function Branch(sp){
 
 	this.newGroup = function(){
 
-    var starts = [];
-    var counts = [];
-
-    for(var i = 0; i < this.geometry.groups.length; i++)
-    {
-      counts.push(this.geometry.groups[i].count);
-      starts.push(this.geometry.groups[i].start);
-    }
-
-    this.geometry.clearGroups();
-
-    for(var i = 0; i < counts.length - 1; i++)
-    {
-      this.geometry.addGroup(starts[i], counts[i], 0);
-    }
-
-    this.geometry.addGroup(
-      starts[counts.length - 1],
-      counts[counts.length - 1] - 6,
-      0);
-
-		var idx = starts[counts.length - 1] + counts[counts.length - 1];
+    var prev_g = this.geometry.groups[this.geometry.groups.length -1];
+    var idx = prev_g.start + prev_g.count;
+    prev_g.count -= 6;
     this.geometry.addGroup(idx , 0, 0);
 		this.geometry.groupsNeedUpdate = true;
-
-    console.log("ng");
 
 	}
 
@@ -217,6 +178,8 @@ function Branch(sp){
 	{
 
     if(this.numPoints == this.maxPoints)return; //don't add any more if out of veritces
+
+    this.endPos.copy(pos);
 
 		this.numPoints = Math.min(this.numPoints + 1, this.maxPoints);
 
@@ -237,14 +200,10 @@ function Branch(sp){
 
     var groupIndex = this.geometry.groups[this.geometry.groups.length -1].count/6;
 
-
-
 		if(groupIndex < 3)return;
 
 		var ppi = i - 2;
 		var pi = i - 1;
-
-    console.log(i, pi , ppi);
 
 		var p0 = new THREE.Vector2(this.vertices[ppi * 6], this.vertices[ppi*6+1]);
 		var p1 = new THREE.Vector2(this.vertices[pi * 6], this.vertices[pi*6+1]);
@@ -267,8 +226,8 @@ function Branch(sp){
 		this.miters[i * 4 + 1] = normal.y;
 		this.miters[i * 4 + 2] = normal.x;
 		this.miters[i * 4 + 3] = normal.y;
-		// this.miter_dims[i * 2] = 1.0;
-		// this.miter_dims[i * 2 + 1] = -1.0;
+	  this.miter_dims[i * 2] = 1.0;
+		this.miter_dims[i * 2 + 1] = -1.0;
 
 
 		if(groupIndex == 3)
@@ -314,53 +273,34 @@ function Branch(sp){
 		this.geometry.attributes.miter.needsUpdate = true;
 		this.geometry.attributes.miter_dims.needsUpdate = true;
 
-		this.endPos.copy(pos);
+
 
 
 	}
 
 	this.growOut = function()
 	{
-
-		//TODO: optimise this
-
 		if(this.endPos === undefined || this.numPoints < 10 || this.numPoints == this.maxPoints )return;
 
 		var n = noise.simplex2(this.numPoints/this.maxPoints * 10.  , this.seed );
-		var np = new THREE.Vector2().copy(this.endPos).add(this.dir)
-		var inc = new THREE.Vector2(-this.dir.y , this.dir.x).multiplyScalar(n * 0.03);
-		np.add(inc);
+    this.direction.normalize();
+    var norm = new THREE.Vector2(-this.direction.y , this.direction.x).multiplyScalar(n * 0.05);
+    this.direction.add(norm);
+    this.direction.setLength(0.002);
 
-		/*//WRAPPING
-		console.log(np);
+    var np = new THREE.Vector2().copy(this.endPos).add(this.direction);
+    var isNewGroup = getModulo(np);
 
-		var isNewGroup = false;
-		//wrapp the geometry
-		if(np.x > width/height)
-		{
-			np.x -= width * 2.0/height;
-			isNewGroup = true;
-		}
-		else if(np.x < -width/height)
-		{
-			np.x += width * 2.0/height;
-			isNewGroup = true;
-		}
+    if(isNewGroup){
+      this.newGroup();
+      this.updateVertices(np);
 
-		if(np.y > 1.0)
-		{
-			np.y -= 2.0;
-			isNewGroup = true;
-		}
-		else if(np.y < -1.0)
-		{
-			np.x += 2.0;
-			isNewGroup = true;
-		}*/
+    }
+    else
+    {
+      this.updateVertices(np);
+    }
 
-
-
-		this.updateVertices(np);
 
 
 	}
@@ -418,7 +358,7 @@ function Crawler(){
 	this.direction = new THREE.Vector3(0,1,0);
 
 	this.arrowHelper = new THREE.ArrowHelper( this.direction, this.position, 0.25, 0xffff00 );
-	this.arrowHelper.setLength(0.25, 0.1,0.1);
+	this.arrowHelper.setLength(0.05,0.025,0.025);
 
 	this.accelEnv = new Envelope2(0.25, 1., 60);
 
@@ -449,36 +389,11 @@ function Crawler(){
 			var l = inc.length();
 			this.travelled += inc.length();
 
-
-
 			this.position.add(inc);
 
       var bd = this.branch.endPos.distanceTo(this.position); // how far the branch will have travelled
 
-			var isNewGroup = false;
-			//modulo the position to make a wrapped space
-			if(this.position.x < -width/height)
-			{
-				this.position.x += width/height * 2.0;
-				isNewGroup = true;
-			}
-			else if(this.position.x > width/height)
-			{
-				this.position.x -= width/height * 2.0;
-				isNewGroup = true;
-			}
-
-			if(this.position.y < -1.0)
-			{
-				this.position.y += 2.0;
-				isNewGroup = true;
-
-			}
-			else if(this.position.y > 1.0)
-			{
-				this.position.y -= 2.0;
-				isNewGroup = true;
-			}
+      var isNewGroup = getModulo(this.position);
 
 			if(isNewGroup)
       {
@@ -531,11 +446,47 @@ newBranch();
 
 function newBranch(){
 
+  if(crawler.branch !== null){
+    crawler.branch.direction = new THREE.Vector2(crawler.direction.x, crawler.direction.y);
+  }
 	crawler.branch = new Branch(crawler.position);
 	branches.push(crawler.branch);
 	scene.add(crawler.branch.mesh);
   //scene.add(crawler.branch.pmesh);
 
+}
+
+function getModulo(p)
+{
+  var isMod = false;
+  //modulo the position to make a wrapped space
+  var w = width/height + 0.05;
+  var h = 1.05;
+
+  if(p.x < -w)
+  {
+    p.x += w * 2.0;
+    isMod = true;
+  }
+  else if(p.x > w)
+  {
+    p.x -= w * 2.0;
+    isMod = true;
+  }
+
+  if(p.y < -h)
+  {
+    p.y += h * 2.0;
+    isMod = true;
+
+  }
+  else if(p.y > h)
+  {
+    p.y -= h * 2.0;
+    isMod = true;
+  }
+
+  return isMod;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

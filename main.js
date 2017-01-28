@@ -76,7 +76,8 @@ var uniforms = {
 	time:       { value: 1.0 },
 	resolution: { value: new THREE.Vector2() },
 	mouse:  	{value: mousePos },
-	scale:      {value: 1.0, gui: true, min: 1.0, max: 10.0}
+	scale:      {value: 1.0, gui: true, min: 1.0, max: 10.0},
+  death:      {value: 0.0, gui: true, min: 0.0, max: 1.0}
 
 };
 
@@ -104,7 +105,6 @@ function Branch(crawler){
 	this.miters = new Float32Array( this.maxPoints * 2 * 2);
 	this.miter_dims = new Float32Array( this.maxPoints * 2);
 
-	this.loc_line_prog = new Float32Array( this.maxPoints * 2);
 	this.glob_line_prog = new Float32Array( this.maxPoints * 2);
 
 	this.noise_mul = 0.01 + Math.random() * 0.04;
@@ -114,7 +114,8 @@ function Branch(crawler){
 		thickness:  {value: 0.01},
 		col_freq: {value: 1.0  + Math.random() * 7.0 },
 		color1: {value: crawler.color1},
-		color2: {value: crawler.color2}
+		color2: {value: crawler.color2},
+    lineProg: {value: 0.0}
 	};
 
 
@@ -158,7 +159,6 @@ function Branch(crawler){
 		this.geometry.addAttribute('index', new THREE.BufferAttribute( this.indexes, 1));
 
 		//custom attributes
-		this.geometry.addAttribute( 'loc_line_prog', new THREE.BufferAttribute( this.loc_line_prog, 1 ) );
 		this.geometry.addAttribute( 'glob_line_prog', new THREE.BufferAttribute( this.glob_line_prog, 1 ) );
 		this.geometry.addAttribute( 'miter', new THREE.BufferAttribute( this.miters, 2 ) );
 		this.geometry.addAttribute( 'miter_dims', new THREE.BufferAttribute( this.miter_dims, 1 ) );
@@ -188,6 +188,8 @@ function Branch(crawler){
 		this.uniforms.thickness.value = Math.max(0.001 , (this.numPoints/this.maxPoints) * 0.02);
 
 		var i = this.numPoints - 1;
+
+    this.uniforms.lineProg.value = this.numPoints/this.maxPoints;
 
 		this.geometry.groups[this.geometry.groups.length -1].count += 6;
 
@@ -266,11 +268,9 @@ function Branch(crawler){
 		this.miter_dims[pi * 2] = l;
 		this.miter_dims[pi * 2 + 1] = -l; //signed to flip the vertex
 
-		this.recalLPs();
 
 		this.geometry.groupsNeedUpdate = true;
 		this.geometry.attributes.position.needsUpdate = true;
-		this.geometry.attributes.loc_line_prog.needsUpdate = true;
     this.geometry.attributes.glob_line_prog.needsUpdate = true;
 		this.geometry.attributes.miter.needsUpdate = true;
 		this.geometry.attributes.miter_dims.needsUpdate = true;
@@ -308,26 +308,6 @@ function Branch(crawler){
 	}
 
 
-	this.recalLPs = function()
-	{
-
-		//calculate the line progression for all points
-		//NB. might be more useful in relation to maxPoints with a uniform for the progress
-		for(var i = 0; i < this.numPoints; i++)
-		{
-			this.loc_line_prog[i * 2] = i/this.numPoints;
-			this.loc_line_prog[i * 2 + 1] = i/this.numPoints;
-		}
-
-		for(var i = this.numPoints; i < this.maxPoints; i++)
-		{
-			this.loc_line_prog[i * 2] = 1.1;
-			this.loc_line_prog[i * 2 + 1] = 1.1;
-		}
-
-	}
-
-
 	for(var u in uniforms)
 	{
 		this.uniforms[u] = uniforms[u]; //copy references to global uniforms
@@ -344,7 +324,6 @@ function Branch(crawler){
 	this.material = new THREE.MultiMaterial(m);
 
 	this.createGeometry();
-	this.recalLPs();
 	this.mesh = new THREE.Mesh( this.geometry, this.material );
   //this.pmesh = new THREE.Points( this.geometry, this.material );
 
